@@ -21,7 +21,8 @@ package main
 import (
 	"flag"
 
-	"github.com/ICGog/poseidongo/pkg/firmament"
+	//	"github.com/ICGog/poseidongo/pkg/firmament"
+	"github.com/ICGog/poseidongo/pkg/k8sclient"
 )
 
 var (
@@ -37,11 +38,28 @@ func init() {
 }
 
 func main() {
-	firmConfig := &firmament_client.firmamentConfig{
-		address: firmamentAddress,
+	// firmConfig := &firmament.firmamentConfig{
+	// 	address: firmamentAddress,
+	// }
+	// fc, err := firmClient.New(firmConfig)
+	// if err != nil {
+	// 	return
+	// }
+	k8sConfig = &k8sclient.k8sConfig{
+		address: k8sAddress,
+		QPS:     1000,
+		burst:   1000,
 	}
-	fc, err := firmClient.New(firmConfig)
+	k8sClient, err := k8sclient.New(k8sConfig)
 	if err != nil {
 		return
+	}
+	for {
+		select {
+		case <-k8sClient.nodeCh:
+			fmt.Println("New Node")
+		case <-k8sClient.podCh:
+			ftm.Println("New pod")
+		}
 	}
 }

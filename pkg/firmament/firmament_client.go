@@ -26,7 +26,7 @@ type firmamentConfig struct {
 	address string
 }
 
-func Schedule(client FirmamentSchedulerClient) {
+func schedule(client FirmamentSchedulerClient) {
 }
 
 func taskCompleted(client FirmamentSchedulerClient) {
