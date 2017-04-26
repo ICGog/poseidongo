@@ -20,6 +20,8 @@ package main
 
 import (
 	"flag"
+
+	"github.com/ICGog/poseidongo/pkg/firmament"
 )
 
 var (
@@ -35,5 +37,11 @@ func init() {
 }
 
 func main() {
-
+	firmConfig := &firmament_client.firmamentConfig{
+		address: firmamentAddress,
+	}
+	fc, err := firmClient.New(firmConfig)
+	if err != nil {
+		return
+	}
 }
