@@ -31,9 +31,10 @@ var (
 )
 
 func init() {
-	flag.Parse()
+
 	flag.StringVar(&firmamentAddress, "firmamentAddress", "127.0.0.1:9090", "Firmament scheduler address")
 	flag.StringVar(&kubeConfig, "kubeConfig", "kubeconfig.cfg", "Path to the kubeconfig file")
+	flag.Parse()
 }
 
 func main() {

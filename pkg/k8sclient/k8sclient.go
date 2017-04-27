@@ -23,6 +23,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"
+	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/fields"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -41,11 +42,11 @@ func StartNodeWatcher(clientset *kubernetes.Clientset) chan *Node {
 	nodeListWatcher := cache.NewListWatchFromClient(clientset.Core().RESTClient(), "nodes", api.NamespaceDefault, fields.Everything())
 	_, nodeInformer := cache.NewInformer(
 		nodeListWatcher,
-		&api.Node{},
+		&v1.Node{},
 		0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(nodeObj interface{}) {
-				node := nodeObj.(*api.Node)
+				node := nodeObj.(*v1.Node)
 				if node.Spec.Unschedulable {
 					return
 				}
@@ -67,11 +68,11 @@ func StartPodWatcher(clientset *kubernetes.Clientset) chan *Pod {
 	podListWatcher := cache.NewListWatchFromClient(clientset.Core().RESTClient(), "pods", api.NamespaceDefault, fields.Everything())
 	_, podInformer := cache.NewInformer(
 		podListWatcher,
-		&api.Pod{},
+		&v1.Pod{},
 		0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(podObj interface{}) {
-				pod := podObj.(*api.Pod)
+				pod := podObj.(*v1.Pod)
 				podCh <- &Pod{
 					ID: pod.Name,
 				}
