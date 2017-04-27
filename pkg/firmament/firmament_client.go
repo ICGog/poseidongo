@@ -19,50 +19,86 @@
 package firmament
 
 import (
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
 )
 
-type firmamentConfig struct {
-	address string
+func Schedule(client FirmamentSchedulerClient) {
+	// TODO(ionel): Implement!
 }
 
-func schedule(client FirmamentSchedulerClient) {
+func TaskCompleted(client FirmamentSchedulerClient, tuid *TaskUID) {
+	_, err := client.TaskCompleted(context.Background(), tuid)
+	if err != nil {
+		grpclog.Fatalf("%v.TaskCompleted(_) = _, %v: ", client, err)
+	}
 }
 
-func taskCompleted(client FirmamentSchedulerClient) {
+func TaskFailed(client FirmamentSchedulerClient, tuid *TaskUID) {
+	_, err := client.TaskFailed(context.Background(), tuid)
+	if err != nil {
+		grpclog.Fatalf("%v.TaskFailed(_) = _, %v: ", client, err)
+	}
 }
 
-func taskFailed(client FirmamentSchedulerClient) {
+func TaskRemoved(client FirmamentSchedulerClient, tuid *TaskUID) {
+	_, err := client.TaskRemoved(context.Background(), tuid)
+	if err != nil {
+		grpclog.Fatalf("%v.TaskRemoved(_) = _, %v: ", client, err)
+	}
 }
 
-func taskRemoved(client FirmamentSchedulerClient) {
+func TaskSubmitted(client FirmamentSchedulerClient, td *TaskDescription) {
+	_, err := client.TaskSubmitted(context.Background(), td)
+	if err != nil {
+		grpclog.Fatalf("%v.TaskSubmitted(_) = _, %v: ", client, err)
+	}
 }
 
-func taskSubmitted(client FirmamentSchedulerClient) {
+func NodeAdded(client FirmamentSchedulerClient, rtnd *ResourceTopologyNodeDescriptor) {
+	_, err := client.NodeAdded(context.Background(), rtnd)
+	if err != nil {
+		grpclog.Fatalf("%v.NodeAdded(_) = _, %v: ", client, err)
+	}
 }
 
-func nodeAdded(client FirmamentSchedulerClient) {
+func NodeFailed(client FirmamentSchedulerClient, ruid *ResourceUID) {
+	_, err := client.NodeFailed(context.Background(), ruid)
+	if err != nil {
+		grpclog.Fatalf("%v.NodeFailed(_) = _, %v: ", client, err)
+	}
 }
 
-func nodeFailed(client FirmamentSchedulerClient) {
+func NodeRemoved(client FirmamentSchedulerClient, ruid *ResourceUID) {
+	_, err := client.NodeRemoved(context.Background(), ruid)
+	if err != nil {
+		grpclog.Fatalf("%v.NodeRemoved(_) = _, %v: ", client, err)
+	}
 }
 
-func nodeRemoved(client FirmamentSchedulerClient) {
+func AddTaskStats(client FirmamentSchedulerClient, ts *TaskStats) {
+	_, err := client.AddTaskStats(context.Background(), ts)
+	if err != nil {
+		grpclog.Fatalf("%v.AddTaskStats(_) = _, %v: ", client, err)
+	}
 }
 
-func addTaskStats(client FirmamentSchedulerClient) {
+func AddNodeStats(client FirmamentSchedulerClient, rs *ResourceStats) {
+	_, err := client.AddNodeStats(context.Background(), rs)
+	if err != nil {
+		grpclog.Fatalf("%v.AddNodeStats(_) = _, %v: ", client, err)
+	}
 }
 
-func addNodeStats(client FirmamentSchedulerClient) {
-}
-
-func New(firmamentConfig config) {
+func New(address string) (FirmamentSchedulerClient, error) {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithInsecure())
-	conn, err = grpc.Dial(*config.address, opts...)
+	conn, err := grpc.Dial(address, opts...)
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
-	firmamentClient := NewFirmamentSchedulerClient(conn)
+	fc := NewFirmamentSchedulerClient(conn)
+	return fc, nil
 }

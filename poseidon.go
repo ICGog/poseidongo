@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/ICGog/poseidongo/pkg/firmament"
 	"github.com/ICGog/poseidongo/pkg/k8sclient"
 )
 
@@ -37,14 +38,35 @@ func init() {
 	flag.Parse()
 }
 
+// func createNewJob(controllerId string) {
+// 	// jobDesc := firmament.JobDescriptor{
+// 	// 	Uuid:
+// 	// 	Name: controllerId,
+// 	// 	State: firmament.JobDescriptor_Created,
+// 	// }
+// }
+
+// func addTaskToJob(jd *firmament.JobDescriptor) {
+// 	task := &firmament.TaskDescriptor{
+// 		//	Uid: ,
+// 		Name:  name,
+// 		State: firmament.TaskDescriptor_Created,
+// 		JobID: jobUuid,
+// 	}
+// 	if jd.RootTask == nil {
+// 		jd.RootTask = task
+// 	} else {
+// 		jd.RootTask.Spawned = append(jd.RootTask.Spawned, task)
+// 	}
+// }
+
 func main() {
-	// firmConfig := &firmament.firmamentConfig{
-	// 	address: firmamentAddress,
-	// }
-	// fc, err := firmClient.New(firmConfig)
-	// if err != nil {
-	// 	return
-	// }
+	fc, err := firmament.New(firmamentAddress)
+	if err != nil {
+		return
+	}
+
+	firmament.AddNodeStats(fc, &firmament.ResourceStats{})
 
 	k8sClient, erra := k8sclient.New(kubeConfig)
 	fmt.Printf("%d %d", k8sClient, erra)
