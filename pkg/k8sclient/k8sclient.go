@@ -64,7 +64,24 @@ func StartNodeWatcher(clientset *kubernetes.Clientset) chan *Node {
 
 func StartPodWatcher(clientset *kubernetes.Clientset) chan *Pod {
 	podCh := make(chan *Pod, 100)
-	//	stopCh := make(chan struct{})
+	podListWatcher := cache.NewListWatchFromClient(clientset.Core().RESTClient(), "pods", api.NamespaceDefault, fields.Everything())
+	_, podInformer := cache.NewInformer(
+		podListWatcher,
+		&api.Pod{},
+		0,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(podObj interface{}) {
+				pod := podObj.(*api.Pod)
+				podCh <- &Pod{
+					ID: pod.Name,
+				}
+			},
+			UpdateFunc: func(oldPodObj, newPodObj interface{}) {},
+			DeleteFunc: func(podObj interface{}) {},
+		},
+	)
+	stopCh := make(chan struct{})
+	go podInformer.Run(stopCh)
 	return podCh
 }
 
@@ -87,22 +104,6 @@ func New(kubeConfig string) (int, int) {
 			fmt.Println("New pod")
 		}
 	}
-
-	// podListWatcher := cache.NewListWatchFromClient(clientset.Core().RESTClient(), "pods", api.NamespaceDefault, fields.Everything())
-	// cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
-	// 	AddFunc:    func(obj interface{}) {},
-	// 	UpdateFunc: func(oldObj, newObj interface{}) {},
-	// 	DeleteFunc: func(obj interface{}) {},
-	// }, cache.Indexers{})
-
-	// for {
-	// 	pods, err := clientset.Core().Pods("").List(v1.ListOptions{})
-	// 	if err != nil {
-	// 		panic(err.Error())
-	// 	}
-	// 	fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
-	// 	time.Sleep(10 * time.Second)
-	// }
 
 	return 1, 1
 }
