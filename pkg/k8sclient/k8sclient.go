@@ -22,12 +22,14 @@ import (
 	"fmt"
 
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/fields"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 )
+
+const nodeBufferSize = 1000
+const podBufferSize = 1000
 
 type Node struct {
 	ID string
@@ -38,8 +40,8 @@ type Pod struct {
 }
 
 func StartNodeWatcher(clientset *kubernetes.Clientset) chan *Node {
-	nodeCh := make(chan *Node, 100)
-	nodeListWatcher := cache.NewListWatchFromClient(clientset.Core().RESTClient(), "nodes", api.NamespaceDefault, fields.Everything())
+	nodeCh := make(chan *Node, nodeBufferSize)
+	nodeListWatcher := cache.NewListWatchFromClient(clientset.Core().RESTClient(), "nodes", v1.NamespaceAll, fields.Everything())
 	_, nodeInformer := cache.NewInformer(
 		nodeListWatcher,
 		&v1.Node{},
@@ -64,8 +66,8 @@ func StartNodeWatcher(clientset *kubernetes.Clientset) chan *Node {
 }
 
 func StartPodWatcher(clientset *kubernetes.Clientset) chan *Pod {
-	podCh := make(chan *Pod, 100)
-	podListWatcher := cache.NewListWatchFromClient(clientset.Core().RESTClient(), "pods", api.NamespaceDefault, fields.Everything())
+	podCh := make(chan *Pod, podBufferSize)
+	podListWatcher := cache.NewListWatchFromClient(clientset.Core().RESTClient(), "pods", v1.NamespaceDefault, fields.Everything())
 	_, podInformer := cache.NewInformer(
 		podListWatcher,
 		&v1.Pod{},
