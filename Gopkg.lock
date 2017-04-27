@@ -1,4 +1,4 @@
-memo = "3b3912265082375bb9962834e9c713e2b795122baed102315b658b753d396ab7"
+memo = "8cbfaf21e250dc2a9d6c219550c9fc15d6f1121e53d5bf86fa016039b1905398"
 
 [[projects]]
   name = "cloud.google.com/go"
@@ -227,6 +227,12 @@ memo = "3b3912265082375bb9962834e9c713e2b795122baed102315b658b753d396ab7"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   revision = "cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b"
+
+[[projects]]
+  branch = "master"
+  name = "k8s.io/apimachinery"
+  packages = ["pkg/api/resource","pkg/apis/meta/v1","pkg/conversion","pkg/conversion/queryparams","pkg/fields","pkg/labels","pkg/openapi","pkg/runtime","pkg/runtime/schema","pkg/selection","pkg/types","pkg/util/errors","pkg/util/intstr","pkg/util/net","pkg/util/runtime","pkg/util/sets","pkg/util/validation","pkg/util/wait","pkg/watch","third_party/forked/golang/reflect"]
+  revision = "6365b4368cb38b2242206e2017e379d97b5b100f"
 
 [[projects]]
   name = "k8s.io/client-go"
