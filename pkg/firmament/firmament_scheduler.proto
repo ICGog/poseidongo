@@ -5,10 +5,10 @@ syntax = "proto3";
 
 package firmament;
 
-import "base/job_desc.proto";
-import "base/task_desc.proto";
-import "base/resource_topology_node_desc.proto";
-import "scheduling/scheduling_delta.proto";
+import "job_desc.proto";
+import "task_desc.proto";
+import "resource_topology_node_desc.proto";
+import "scheduling_delta.proto";
 
 service FirmamentScheduler {
   rpc Schedule (ScheduleRequest) returns (SchedulingDeltas) {}
