@@ -20,7 +20,7 @@ package k8sclient
 
 import (
 	"fmt"
-	"path"
+	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
@@ -41,31 +41,32 @@ type Node struct {
 // 	podCh  chan *Pod
 // }
 
-// func StartNodeWatcher() (chan *Node, chan struct{}) {
+// func StartNodeWatcher(clientset Clientset) (chan *Node, chan struct{}) {
 // 	nodeCh := make(chan *Node, NodeBufferSize)
-// 	_, nodeInformer := framework.NewInformer(
-// 		cache.NewListWatchFromClient(c, "nodes", api.NamespaceAll,
-// 			fields.ParseSelectorOrDie("")),
-// 		&api.Node{},
-// 		0,
-// 		framework.ResourceEventHandlerFuncs{
-// 			AddFunc: func(nodeObj interface{}) {
-// 				node := nodeObj.(*api.Node)
-// 				if node.Spec.Unschedulable {
-// 					return
-// 				}
-// 				nodeCh <- &Node{
-// 					ID: node.Name,
-// 				}
-// 			},
-// 			UpdateFunc: func(oldNodeObj, newNodeObj interface{}) {},
-// 			DeleteFunc: func(nodeObj interface{}) {},
+
+// _, nodeInformer := framework.NewInformer(
+// 	cache.NewListWatchFromClient(c, "nodes", api.NamespaceAll,
+// 		fields.ParseSelectorOrDie("")),
+// 	&api.Node{},
+// 	0,
+// 	framework.ResourceEventHandlerFuncs{
+// 		AddFunc: func(nodeObj interface{}) {
+// 			node := nodeObj.(*api.Node)
+// 			if node.Spec.Unschedulable {
+// 				return
+// 			}
+// 			nodeCh <- &Node{
+// 				ID: node.Name,
+// 			}
 // 		},
-// 	)
-// 	stopCh := make(chan struct{})
-// 	go nodeInformer.Run(stopCh)
-// 	return nodeCh, stopCh
-// }
+// 		UpdateFunc: func(oldNodeObj, newNodeObj interface{}) {},
+// 		DeleteFunc: func(nodeObj interface{}) {},
+// 	},
+// )
+//	stopCh := make(chan struct{})
+//	go nodeInformer.Run(stopCh)
+//	return nodeCh, stopCh
+//}
 
 // func StartPodWatcher() (chan *Pod, chan struct{}) {
 // 	podCh := make(chan *Pod, PodBufferSize)
@@ -100,16 +101,7 @@ type Node struct {
 // 	return podCh, stopCh
 // }
 
-func New(kubeConfig string) (*Client, error) {
-	// restClientConfig := &restClient.Config{
-	// 	Host:  fmt.Sprintf("http://%s", config.address),
-	// 	QPS:   Config.QPS,
-	// 	Burst: Config.burst,
-	// }
-	// c, err := k8sClient.New(restClientConfig)
-	// if err != nil {
-	// 	return nil, err
-	// }
+func New(kubeConfig string) (int, int) {
 	// nodeCh, stopNodeCh = StartNodeWatcher()
 	// podCh, stopPodCh = StartPodWatcher()
 	// return &Client{
@@ -117,9 +109,22 @@ func New(kubeConfig string) (*Client, error) {
 	// 	nodeCh: nodeCh,
 	// 	podCh:  podCh,
 	// }, nil
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeConfig)
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
-		return config, err
+		panic(err.Error())
 	}
-	return kubernetes.NewForConfig(config)
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	for {
+		pods, err := clientset.Core().Pods("").List(v1.ListOptions{})
+		if err != nil {
+			panic(err.Error())
+		}
+		fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
+		time.Sleep(10 * time.Second)
+	}
+
+	return 1, 1
 }
