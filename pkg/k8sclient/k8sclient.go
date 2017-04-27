@@ -22,20 +22,10 @@ import (
 	"fmt"
 	"path"
 
-	"k8s.io/kubernetes/pkg/api"
-	k8sClient "k8s.io/kubernetes/pkg/client/unversioned"
-	"k8s.io/kubernetes/pkg/controller/framework"
-	"k8s.io/kubernetes/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/tools/clientcmd"
 )
-
-type k8sConfig struct {
-	address string
-	QPS     int
-	burst   int
-}
-
-const NodeBufferSize = 100
-const PodBufferSize = 100
 
 type Pod struct {
 	ID string
@@ -45,86 +35,91 @@ type Node struct {
 	ID string
 }
 
-type Client struct {
-	k8sApi *k8sClient.Client
-	nodeCh chan *Node
-	podCh  chan *Pod
-}
+// type Client struct {
+// 	k8sApi *k8sClient.Client
+// 	nodeCh chan *Node
+// 	podCh  chan *Pod
+// }
 
-func StartNodeWatcher() (chan *Node, chan struct{}) {
-	nodeCh := make(chan *Node, NodeBufferSize)
-	_, nodeInformer := framework.NewInformer(
-		cache.NewListWatchFromClient(c, "nodes", api.NamespaceAll,
-			fields.ParseSelectorOrDie("")),
-		&api.Node{},
-		0,
-		framework.ResourceEventHandlerFuncs{
-			AddFunc: func(nodeObj interface{}) {
-				node := nodeObj.(*api.Node)
-				if node.Spec.Unschedulable {
-					return
-				}
-				nodeCh <- &Node{
-					ID: node.Name,
-				}
-			},
-			UpdateFunc: func(oldNodeObj, newNodeObj interface{}) {},
-			DeleteFunc: func(nodeObj interface{}) {},
-		},
-	)
-	stopCh := make(chan struct{})
-	go nodeInformer.Run(stopCh)
-	return nodeCh, stopCh
-}
+// func StartNodeWatcher() (chan *Node, chan struct{}) {
+// 	nodeCh := make(chan *Node, NodeBufferSize)
+// 	_, nodeInformer := framework.NewInformer(
+// 		cache.NewListWatchFromClient(c, "nodes", api.NamespaceAll,
+// 			fields.ParseSelectorOrDie("")),
+// 		&api.Node{},
+// 		0,
+// 		framework.ResourceEventHandlerFuncs{
+// 			AddFunc: func(nodeObj interface{}) {
+// 				node := nodeObj.(*api.Node)
+// 				if node.Spec.Unschedulable {
+// 					return
+// 				}
+// 				nodeCh <- &Node{
+// 					ID: node.Name,
+// 				}
+// 			},
+// 			UpdateFunc: func(oldNodeObj, newNodeObj interface{}) {},
+// 			DeleteFunc: func(nodeObj interface{}) {},
+// 		},
+// 	)
+// 	stopCh := make(chan struct{})
+// 	go nodeInformer.Run(stopCh)
+// 	return nodeCh, stopCh
+// }
 
-func StartPodWatcher() (chan *Pod, chan struct{}) {
-	podCh := make(chan *Pod, PodBufferSize)
+// func StartPodWatcher() (chan *Pod, chan struct{}) {
+// 	podCh := make(chan *Pod, PodBufferSize)
 
-	podSelector := fields.ParseSelectorOrDie("spec.nodeName==")
-	podInformer := framework.NewSharedInformer(
-		&cache.ListWatch{
-			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
-				options.FieldSelector = podSelector
-				return c.Pods(api.NamespaceAll).List(options)
-			},
-			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
-				options.FieldSelector = podSelector
-				return c.Pods(api.NamespaceAll).Watch(options)
-			},
-		},
-		&api.Pod{},
-		0,
-	)
-	podInformer.AddEventHandler(framework.ResourceEventHandlerFuncs{
-		AddFunc: func(podObj interface{}) {
-			pod := podObj.(*api.Pod)
-			podeCh <- &Pod{
-				ID: path.Join(pod.Namespace, pod.Name),
-			}
-		},
-		UpdateFunc: func(oldPodObj, newPodObj interface{}) {},
-		DeleteFunc: func(podObj interface{}) {},
-	})
-	stopCh := make(chan struct{})
-	go podInformer.Run(stopCh)
-	return podCh, stopCh
-}
+// 	podSelector := fields.ParseSelectorOrDie("spec.nodeName==")
+// 	podInformer := framework.NewSharedInformer(
+// 		&cache.ListWatch{
+// 			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+// 				options.FieldSelector = podSelector
+// 				return c.Pods(api.NamespaceAll).List(options)
+// 			},
+// 			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+// 				options.FieldSelector = podSelector
+// 				return c.Pods(api.NamespaceAll).Watch(options)
+// 			},
+// 		},
+// 		&api.Pod{},
+// 		0,
+// 	)
+// 	podInformer.AddEventHandler(framework.ResourceEventHandlerFuncs{
+// 		AddFunc: func(podObj interface{}) {
+// 			pod := podObj.(*api.Pod)
+// 			podeCh <- &Pod{
+// 				ID: path.Join(pod.Namespace, pod.Name),
+// 			}
+// 		},
+// 		UpdateFunc: func(oldPodObj, newPodObj interface{}) {},
+// 		DeleteFunc: func(podObj interface{}) {},
+// 	})
+// 	stopCh := make(chan struct{})
+// 	go podInformer.Run(stopCh)
+// 	return podCh, stopCh
+// }
 
-func New(k8sConfig config) (*Client, error) {
-	restClientConfig := &restClient.Config{
-		Host:  fmt.Sprintf("http://%s", config.address),
-		QPS:   Config.QPS,
-		Burst: Config.burst,
-	}
-	c, err := k8sClient.New(restClientConfig)
+func New(kubeConfig string) (*Client, error) {
+	// restClientConfig := &restClient.Config{
+	// 	Host:  fmt.Sprintf("http://%s", config.address),
+	// 	QPS:   Config.QPS,
+	// 	Burst: Config.burst,
+	// }
+	// c, err := k8sClient.New(restClientConfig)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// nodeCh, stopNodeCh = StartNodeWatcher()
+	// podCh, stopPodCh = StartPodWatcher()
+	// return &Client{
+	// 	k8sApi: c,
+	// 	nodeCh: nodeCh,
+	// 	podCh:  podCh,
+	// }, nil
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeConfig)
 	if err != nil {
-		return nil, err
+		return config, err
 	}
-	nodeCh, stopNodeCh = StartNodeWatcher()
-	podCh, stopPodCh = StartPodWatcher()
-	return &Client{
-		k8sApi: c,
-		nodeCh: nodeCh,
-		podCh:  podCh,
-	}, nil
+	return kubernetes.NewForConfig(config)
 }
