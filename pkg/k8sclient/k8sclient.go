@@ -30,13 +30,38 @@ import (
 
 const nodeBufferSize = 1000
 const podBufferSize = 1000
+const bytesToKb = 1024
 
 type Node struct {
-	ID string
+	Hostname         string
+	IsReady          bool
+	IsOutOfDisk      bool
+	CpuCapacity      int64
+	CpuAllocatable   int64
+	MemCapacityKb    int64
+	MemAllocatableKb int64
+	Labels           map[string]string
+	Annotations      map[string]string
 }
 
+type PodPhase string
+
+const (
+	PodPending   PodPhase = "Pending"
+	PodRunning   PodPhase = "Running"
+	PodSucceeded PodPhase = "Succeeded"
+	PodFailed    PodPhase = "Failed"
+	PodUnknown   PodPhase = "Unknown"
+)
+
 type Pod struct {
-	ID string
+	Name         string
+	State        PodPhase
+	CpuRequest   int64
+	MemRequestKb int64
+	Labels       map[string]string
+	Annotations  map[string]string
+	NodeSelector map[string]string
 }
 
 func StartNodeWatcher(clientset *kubernetes.Clientset) chan *Node {
@@ -52,12 +77,47 @@ func StartNodeWatcher(clientset *kubernetes.Clientset) chan *Node {
 				if node.Spec.Unschedulable {
 					return
 				}
-				nodeCh <- &Node{
-					ID: node.Name,
+				isReady := false
+				isOutOfDisk := false
+				for _, cond := range node.Status.Conditions {
+					switch cond.Type {
+					case "OutOfDisk":
+						isOutOfDisk = cond.Status == "True"
+					case "Ready":
+						isReady = cond.Status == "True"
+					}
 				}
+				cpuCapQuantity := node.Status.Capacity["cpu"]
+				cpuCap, _ := cpuCapQuantity.AsInt64()
+				cpuAllocQuantity := node.Status.Allocatable["cpu"]
+				cpuAlloc, _ := cpuAllocQuantity.AsInt64()
+				memCapQuantity := node.Status.Capacity["memory"]
+				memCap, _ := memCapQuantity.AsInt64()
+				memAllocQuantity := node.Status.Allocatable["memory"]
+				memAlloc, _ := memAllocQuantity.AsInt64()
+				nodeCh <- &Node{
+					Hostname:         node.Name,
+					IsReady:          isReady,
+					IsOutOfDisk:      isOutOfDisk,
+					CpuCapacity:      cpuCap,
+					CpuAllocatable:   cpuAlloc,
+					MemCapacityKb:    memCap / bytesToKb,
+					MemAllocatableKb: memAlloc / bytesToKb,
+					Labels:           node.Labels,
+					Annotations:      node.Annotations,
+				}
+
 			},
-			UpdateFunc: func(oldNodeObj, newNodeObj interface{}) {},
-			DeleteFunc: func(nodeObj interface{}) {},
+			UpdateFunc: func(oldNodeObj, newNodeObj interface{}) {
+				oldNode := oldNodeObj.(*v1.Node)
+				fmt.Printf("%+v\n", oldNode)
+				newNode := newNodeObj.(*v1.Node)
+				fmt.Printf("%+v\n", newNode)
+			},
+			DeleteFunc: func(nodeObj interface{}) {
+				node := nodeObj.(*v1.Node)
+				fmt.Printf("%+v\n", node)
+			},
 		},
 	)
 	stopCh := make(chan struct{})
@@ -75,9 +135,38 @@ func StartPodWatcher(clientset *kubernetes.Clientset) chan *Pod {
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(podObj interface{}) {
 				pod := podObj.(*v1.Pod)
-				podCh <- &Pod{
-					ID: pod.Name,
+				cpuReq := int64(0)
+				memReq := int64(0)
+				for _, container := range pod.Spec.Containers {
+					request := container.Resources.Requests
+					cpuReqQuantity := request["cpu"]
+					cpuReqCont, _ := cpuReqQuantity.AsInt64()
+					cpuReq += cpuReqCont
+					memReqQuantity := request["memory"]
+					memReqCont, _ := memReqQuantity.AsInt64()
+					memReq += memReqCont
 				}
+				podPhase := PodPhase("Unknown")
+				switch pod.Status.Phase {
+				case "Pending":
+					podPhase = "Pending"
+				case "Running":
+					podPhase = "Running"
+				case "Succeeded":
+					podPhase = "Succeeded"
+				case "Failed":
+					podPhase = "Failed"
+				}
+				podCh <- &Pod{
+					Name:         pod.Name,
+					State:        podPhase,
+					CpuRequest:   cpuReq,
+					MemRequestKb: memReq / bytesToKb,
+					Labels:       pod.Labels,
+					Annotations:  pod.Annotations,
+					NodeSelector: pod.Spec.NodeSelector,
+				}
+
 			},
 			UpdateFunc: func(oldPodObj, newPodObj interface{}) {},
 			DeleteFunc: func(podObj interface{}) {},
@@ -88,7 +177,7 @@ func StartPodWatcher(clientset *kubernetes.Clientset) chan *Pod {
 	return podCh
 }
 
-func New(kubeConfig string) (int, int) {
+func New(kubeConfig string) (chan *Node, chan *Pod) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
 		panic(err.Error())
@@ -99,14 +188,5 @@ func New(kubeConfig string) (int, int) {
 	}
 	nodeCh := StartNodeWatcher(clientset)
 	podCh := StartPodWatcher(clientset)
-	for {
-		select {
-		case <-nodeCh:
-			fmt.Println("New node")
-		case <-podCh:
-			fmt.Println("New pod")
-		}
-	}
-
-	return 1, 1
+	return nodeCh, podCh
 }

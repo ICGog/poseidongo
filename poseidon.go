@@ -21,6 +21,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"strconv"
 
 	"github.com/ICGog/poseidongo/pkg/firmament"
 	"github.com/ICGog/poseidongo/pkg/k8sclient"
@@ -38,36 +39,41 @@ func init() {
 }
 
 func GenerateResourceID() string {
+	// TODO(ionel): GenerateResourceID
 	return "test"
 }
 
-// func createResourceTopologyForNode(hostname string, cpuCapacity int, ramCapacity int) *ResourceTopologyNodeDescriptor {
-// 	resUuid := GenerateResourceID()
-// 	rtnd := &firmament.ResourceTopologyNodeDescriptor{
-// 		Uuid:         resUuid,
-// 		Type:         firmament.ResourceDescriptor_ResourceMachine,
-// 		State:        firmament.ResourceDescriptor_ResourceIdle,
-// 		FriendlyName: hostname,
-// 		ResourceCapacity: &firmament.ResourceVector{
-// 			RamCap:   ramCapacity,
-// 			CpuCores: cpuCapacity,
-// 		},
-// 	}
-// 	// TODO(ionel): In the future, we want to get real node topology rather
-// 	// than manually connecting PU RDs to the machine RD.
-// 	for num_pu := 0; num_pu < cpuCapacity; num_pu++ {
-// 		puResUuid := GenerateResourceID()
-// 		puRtnd := &firmament.ResourceTopologyNodeDescriptor{
-// 			UUid:         puResUuid,
-// 			Type:         firmament.ResourceDescriptor_ResourcePu,
-// 			State:        firmament.ResourceDescriptor_ResourceIdle,
-// 			FriendlyName: hostname + "_pu" + strconv.Itoa(num_pu),
-// 			ParentId:     resUuid,
-// 		}
-// 		rtnd.Children = append(rntd.Children, puRtnd)
-// 	}
-// 	return rtnd
-// }
+func createResourceTopologyForNode(hostname string, cpuCapacity int64, ramCapacity int64) *firmament.ResourceTopologyNodeDescriptor {
+	resUuid := GenerateResourceID()
+	rtnd := &firmament.ResourceTopologyNodeDescriptor{
+		ResourceDesc: &firmament.ResourceDescriptor{
+			Uuid:         resUuid,
+			Type:         firmament.ResourceDescriptor_RESOURCE_MACHINE,
+			State:        firmament.ResourceDescriptor_RESOURCE_IDLE,
+			FriendlyName: hostname,
+			ResourceCapacity: &firmament.ResourceVector{
+				RamCap:   ramCapacity,
+				CpuCores: cpuCapacity,
+			},
+		},
+	}
+	// TODO(ionel): In the future, we want to get real node topology rather
+	// than manually connecting PU RDs to the machine RD.
+	for num_pu := int64(0); num_pu < cpuCapacity; num_pu++ {
+		puResUuid := GenerateResourceID()
+		puRtnd := &firmament.ResourceTopologyNodeDescriptor{
+			ResourceDesc: &firmament.ResourceDescriptor{
+				Uuid:         puResUuid,
+				Type:         firmament.ResourceDescriptor_RESOURCE_PU,
+				State:        firmament.ResourceDescriptor_RESOURCE_IDLE,
+				FriendlyName: hostname + "_pu" + strconv.FormatInt(num_pu, 10),
+			},
+			ParentId: resUuid,
+		}
+		rtnd.Children = append(rtnd.Children, puRtnd)
+	}
+	return rtnd
+}
 
 // func createNewJob(controllerId string) {
 // 	// jobDesc := firmament.JobDescriptor{
@@ -92,13 +98,23 @@ func GenerateResourceID() string {
 // }
 
 func main() {
-	fc, err := firmament.New(firmamentAddress)
-	if err != nil {
-		return
+	// fc, err := firmament.New(firmamentAddress)
+	// if err != nil {
+	// 	return
+	// }
+
+	// firmament.AddNodeStats(fc, &firmament.ResourceStats{})
+
+	nodeCh, podCh := k8sclient.New(kubeConfig)
+	for {
+		select {
+		case node := <-nodeCh:
+			rtnd := createResourceTopologyForNode(node.Hostname, node.CpuCapacity, node.MemCapacityKb)
+			//firmament.NodeAdded(fc, rtnd)
+			fmt.Println("New node")
+		case <-podCh:
+			fmt.Println("New pod")
+			//firmament.TaskSubmitted(fc, td)
+		}
 	}
-
-	firmament.AddNodeStats(fc, &firmament.ResourceStats{})
-
-	k8sClient, erra := k8sclient.New(kubeConfig)
-	fmt.Printf("%d %d", k8sClient, erra)
 }
