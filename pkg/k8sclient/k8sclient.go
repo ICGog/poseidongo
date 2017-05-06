@@ -177,6 +177,14 @@ func StartPodWatcher(clientset *kubernetes.Clientset) chan *Pod {
 	return podCh
 }
 
+func BindPodToNode() {
+	// TODO(ionel): Implement!
+}
+
+func DeletePod() {
+	// TODO(ionel): Implement!
+}
+
 func New(kubeConfig string) (chan *Node, chan *Pod) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
