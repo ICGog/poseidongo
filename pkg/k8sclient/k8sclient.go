@@ -19,163 +19,12 @@
 package k8sclient
 
 import (
-	"fmt"
+	"github.com/golang/glog"
 
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/fields"
-	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
-
-const nodeBufferSize = 1000
-const podBufferSize = 1000
-const bytesToKb = 1024
-
-type Node struct {
-	Hostname         string
-	IsReady          bool
-	IsOutOfDisk      bool
-	CpuCapacity      int64
-	CpuAllocatable   int64
-	MemCapacityKb    int64
-	MemAllocatableKb int64
-	Labels           map[string]string
-	Annotations      map[string]string
-}
-
-type PodPhase string
-
-const (
-	PodPending   PodPhase = "Pending"
-	PodRunning   PodPhase = "Running"
-	PodSucceeded PodPhase = "Succeeded"
-	PodFailed    PodPhase = "Failed"
-	PodUnknown   PodPhase = "Unknown"
-)
-
-type Pod struct {
-	Name         string
-	State        PodPhase
-	CpuRequest   int64
-	MemRequestKb int64
-	Labels       map[string]string
-	Annotations  map[string]string
-	NodeSelector map[string]string
-}
-
-func StartNodeWatcher(clientset *kubernetes.Clientset) chan *Node {
-	nodeCh := make(chan *Node, nodeBufferSize)
-	nodeListWatcher := cache.NewListWatchFromClient(clientset.Core().RESTClient(), "nodes", v1.NamespaceAll, fields.Everything())
-	_, nodeInformer := cache.NewInformer(
-		nodeListWatcher,
-		&v1.Node{},
-		0,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(nodeObj interface{}) {
-				node := nodeObj.(*v1.Node)
-				if node.Spec.Unschedulable {
-					return
-				}
-				isReady := false
-				isOutOfDisk := false
-				for _, cond := range node.Status.Conditions {
-					switch cond.Type {
-					case "OutOfDisk":
-						isOutOfDisk = cond.Status == "True"
-					case "Ready":
-						isReady = cond.Status == "True"
-					}
-				}
-				cpuCapQuantity := node.Status.Capacity["cpu"]
-				cpuCap, _ := cpuCapQuantity.AsInt64()
-				cpuAllocQuantity := node.Status.Allocatable["cpu"]
-				cpuAlloc, _ := cpuAllocQuantity.AsInt64()
-				memCapQuantity := node.Status.Capacity["memory"]
-				memCap, _ := memCapQuantity.AsInt64()
-				memAllocQuantity := node.Status.Allocatable["memory"]
-				memAlloc, _ := memAllocQuantity.AsInt64()
-				nodeCh <- &Node{
-					Hostname:         node.Name,
-					IsReady:          isReady,
-					IsOutOfDisk:      isOutOfDisk,
-					CpuCapacity:      cpuCap,
-					CpuAllocatable:   cpuAlloc,
-					MemCapacityKb:    memCap / bytesToKb,
-					MemAllocatableKb: memAlloc / bytesToKb,
-					Labels:           node.Labels,
-					Annotations:      node.Annotations,
-				}
-
-			},
-			UpdateFunc: func(oldNodeObj, newNodeObj interface{}) {
-				oldNode := oldNodeObj.(*v1.Node)
-				fmt.Printf("%+v\n", oldNode)
-				newNode := newNodeObj.(*v1.Node)
-				fmt.Printf("%+v\n", newNode)
-			},
-			DeleteFunc: func(nodeObj interface{}) {
-				node := nodeObj.(*v1.Node)
-				fmt.Printf("%+v\n", node)
-			},
-		},
-	)
-	stopCh := make(chan struct{})
-	go nodeInformer.Run(stopCh)
-	return nodeCh
-}
-
-func StartPodWatcher(clientset *kubernetes.Clientset) chan *Pod {
-	podCh := make(chan *Pod, podBufferSize)
-	podListWatcher := cache.NewListWatchFromClient(clientset.Core().RESTClient(), "pods", v1.NamespaceDefault, fields.Everything())
-	_, podInformer := cache.NewInformer(
-		podListWatcher,
-		&v1.Pod{},
-		0,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(podObj interface{}) {
-				pod := podObj.(*v1.Pod)
-				cpuReq := int64(0)
-				memReq := int64(0)
-				for _, container := range pod.Spec.Containers {
-					request := container.Resources.Requests
-					cpuReqQuantity := request["cpu"]
-					cpuReqCont, _ := cpuReqQuantity.AsInt64()
-					cpuReq += cpuReqCont
-					memReqQuantity := request["memory"]
-					memReqCont, _ := memReqQuantity.AsInt64()
-					memReq += memReqCont
-				}
-				podPhase := PodPhase("Unknown")
-				switch pod.Status.Phase {
-				case "Pending":
-					podPhase = "Pending"
-				case "Running":
-					podPhase = "Running"
-				case "Succeeded":
-					podPhase = "Succeeded"
-				case "Failed":
-					podPhase = "Failed"
-				}
-				podCh <- &Pod{
-					Name:         pod.Name,
-					State:        podPhase,
-					CpuRequest:   cpuReq,
-					MemRequestKb: memReq / bytesToKb,
-					Labels:       pod.Labels,
-					Annotations:  pod.Annotations,
-					NodeSelector: pod.Spec.NodeSelector,
-				}
-
-			},
-			UpdateFunc: func(oldPodObj, newPodObj interface{}) {},
-			DeleteFunc: func(podObj interface{}) {},
-		},
-	)
-	stopCh := make(chan struct{})
-	go podInformer.Run(stopCh)
-	return podCh
-}
 
 func BindPodToNode() {
 	// TODO(ionel): Implement!
@@ -185,16 +34,29 @@ func DeletePod() {
 	// TODO(ionel): Implement!
 }
 
-func New(kubeConfig string) (chan *Node, chan *Pod) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
-	if err != nil {
-		panic(err.Error())
+func GetClientConfig(kubeconfig string) (*rest.Config, error) {
+	if kubeconfig != "" {
+		return clientcmd.BuildConfigFromFlags("", kubeconfig)
 	}
+	return rest.InClusterConfig()
+}
+
+func New(kubeConfig string, schedulerName string) (chan *Node, chan *Pod) {
+	config, err := GetClientConfig(kubeConfig)
+	if err != nil {
+		glog.Fatalf("Failed to load client config: %v", err)
+	}
+
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		glog.Fatalf("Failed to create connection: %v", err)
 	}
-	nodeCh := StartNodeWatcher(clientset)
-	podCh := StartPodWatcher(clientset)
-	return nodeCh, podCh
+	glog.Info("k8s newclient called")
+	stopCh := make(chan struct{})
+	go NewPodWatcher(clientset, schedulerName).Run(stopCh, 10)
+	go NewNodeWatcher(clientset).Run(stopCh, 10)
+
+	//we block here
+	<-stopCh
+	return nil, nil
 }
