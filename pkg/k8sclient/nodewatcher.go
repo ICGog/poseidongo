@@ -22,24 +22,20 @@ import (
 	"strconv"
 	"time"
 
-	//"k8s.io/apimachinery/pkg/fields"
+	"github.com/ICGog/poseidongo/pkg/firmament"
+	"github.com/golang/glog"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
-	//"k8s.io/client-go/pkg/api"
-	"github.com/golang/glog"
-	"github.com/shivramsrivastava/poseidongo/pkg/firmament"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
 
 func NewNodeWatcher(client kubernetes.Interface) *NodeWatcher {
-
-	glog.Info("Starting NodeWatcher")
-
+	glog.Info("Starting NodeWatcher...")
 	nodewatcher := &NodeWatcher{clientset: client}
 	_, controller := cache.NewInformer(
 		&cache.ListWatch{
@@ -54,32 +50,27 @@ func NewNodeWatcher(client kubernetes.Interface) *NodeWatcher {
 		0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				glog.Info(" Add Event on Nodewatcher called ")
+				glog.Info("Add Event on Nodewatcher")
 				nodewatcher.enqueueNodes(obj)
 			},
 			UpdateFunc: func(old, new interface{}) {
-				glog.Info(" Update Event on Nodewatcher called ")
+				glog.Info("Update Event on Nodewatcher")
 				nodewatcher.enqueueNodes(new)
 			},
 			DeleteFunc: func(obj interface{}) {
-				glog.Info(" Delete Event on Nodewatcher called ")
+				glog.Info("Delete Event on Nodewatcher")
 				nodewatcher.enqueueNodes(obj)
 			},
 		},
 	)
-
 	nodewatcher.controller = controller
 	nodewatcher.nodeWorkQueue = workqueue.NewNamedDelayingQueue("nodeQueue")
-
 	return nodewatcher
-
 }
 
 func (this *NodeWatcher) enqueueNodes(obj interface{}) {
-
 	glog.Info("enqueueNodes function called")
 	node := obj.(*v1.Node)
-	//chec if node already in the map
 	if node.Spec.Unschedulable {
 		glog.Info("enqueueNodes: Received an Unschedulable node", node.Name)
 		return
@@ -118,25 +109,20 @@ func (this *NodeWatcher) enqueueNodes(obj interface{}) {
 }
 
 func (this *NodeWatcher) Run(stopCh <-chan struct{}, workers int) {
-	//defer runtime.HandleCrash()
 	defer this.nodeWorkQueue.ShutDown()
-
-	glog.Info("Run method of nodeWatcher called")
 	defer glog.Info("Shutting down NodeWatcher")
+	glog.Info("Geting node updates...")
 
 	go this.controller.Run(stopCh) //this call will popultate the events
 
 	if !cache.WaitForCacheSync(stopCh, this.controller.HasSynced) {
-
 		glog.Info("Waiting in the run method for 3 sec")
 		time.Sleep(time.Second * 3)
 		return
 	}
 
-	glog.Info("Starting the node watcher worker methods")
-
+	glog.Info("Starting the node watching workers")
 	for i := 0; i < workers; i++ {
-
 		go wait.Until(this.nodeWorker, time.Second, stopCh)
 	}
 
@@ -146,15 +132,11 @@ func (this *NodeWatcher) Run(stopCh <-chan struct{}, workers int) {
 func (this *NodeWatcher) nodeWorker() {
 	for {
 		func() {
-			glog.Info("nodeWorker func called")
-			glog.Info("Blocking in get func of nodeWorker func")
-
 			key, quit := this.nodeWorkQueue.Get()
 			if quit {
 				return
 			}
 			node := key.(*Node)
-			glog.Info("node data from the queue", node)
 			rtnd := this.createResourceTopologyForNode(node)
 			glog.Info("ResourceTopologyNodeDescriptor ", rtnd)
 			//firmament.NodeAdded(fc, rtnd)

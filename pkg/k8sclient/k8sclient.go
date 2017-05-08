@@ -20,7 +20,6 @@ package k8sclient
 
 import (
 	"github.com/golang/glog"
-
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -41,12 +40,11 @@ func GetClientConfig(kubeconfig string) (*rest.Config, error) {
 	return rest.InClusterConfig()
 }
 
-func New(kubeConfig string, schedulerName string) (chan *Node, chan *Pod) {
+func New(kubeConfig string, schedulerName string) {
 	config, err := GetClientConfig(kubeConfig)
 	if err != nil {
 		glog.Fatalf("Failed to load client config: %v", err)
 	}
-
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		glog.Fatalf("Failed to create connection: %v", err)
@@ -56,7 +54,6 @@ func New(kubeConfig string, schedulerName string) (chan *Node, chan *Pod) {
 	go NewPodWatcher(clientset, schedulerName).Run(stopCh, 10)
 	go NewNodeWatcher(clientset).Run(stopCh, 10)
 
-	//we block here
+	// We block here.
 	<-stopCh
-	return nil, nil
 }

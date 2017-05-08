@@ -68,9 +68,8 @@
   version = "^1.3.0"
 
 [[dependencies]]
-  branch = "master"
   name = "k8s.io/apimachinery"
 
 [[dependencies]]
+  branch = "master"
   name = "k8s.io/client-go"
-  version = "^3.0.0-beta.0"

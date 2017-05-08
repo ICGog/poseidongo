@@ -21,8 +21,8 @@ package k8sclient
 import (
 	"time"
 
+	"github.com/ICGog/poseidongo/pkg/firmament"
 	"github.com/golang/glog"
-	"github.com/shivramsrivastava/poseidongo/pkg/firmament"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,9 +35,8 @@ import (
 )
 
 func NewPodWatcher(client kubernetes.Interface, schedulerName string) *PodWatcher {
-
-	glog.Info("Starting PodWatcher..")
-	podwatcher := &PodWatcher{clientset: client}
+	glog.Info("Starting PodWatcher...")
+	podWatcher := &PodWatcher{clientset: client}
 	podStatuSelector := fields.ParseSelectorOrDie("spec.nodeName==")
 	_, controller := cache.NewInformer(
 		&cache.ListWatch{
@@ -54,31 +53,26 @@ func NewPodWatcher(client kubernetes.Interface, schedulerName string) *PodWatche
 		0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				glog.Info(" Add Event on Podwatcher called ")
-				podwatcher.enqueuePods(obj)
+				glog.Info(" Add Event on Podwatcher")
+				podWatcher.enqueuePods(obj)
 			},
 			UpdateFunc: func(old, new interface{}) {
-				glog.Info(" Update Event on Podwatcher called ")
-				podwatcher.enqueuePods(new)
+				glog.Info(" Update Event on Podwatcher")
+				podWatcher.enqueuePods(new)
 			},
-			//rc.UpdateEvent(old, new) },
 			DeleteFunc: func(obj interface{}) {
-				glog.Info(" Delete Event on Podwatcher called ")
-				podwatcher.enqueuePods(obj)
+				glog.Info(" Delete Event on Podwatcher")
+				podWatcher.enqueuePods(obj)
 			},
 		},
 	)
-
-	podwatcher.controller = controller
-	podwatcher.podWorkQueue = workqueue.NewNamedDelayingQueue("PodQueue")
-
-	return podwatcher
-
+	podWatcher.controller = controller
+	podWatcher.podWorkQueue = workqueue.NewNamedDelayingQueue("PodQueue")
+	return podWatcher
 }
 
 func (this *PodWatcher) enqueuePods(obj interface{}) {
 	glog.Info("enqueuePods function called")
-
 	pod := obj.(*v1.Pod)
 	cpuReq := int64(0)
 	memReq := int64(0)
@@ -116,13 +110,11 @@ func (this *PodWatcher) enqueuePods(obj interface{}) {
 }
 
 func (this *PodWatcher) Run(stopCh <-chan struct{}, workers int) {
-	//defer runtime.HandleCrash()
 	defer this.podWorkQueue.ShutDown()
-
-	glog.Info("PodWatcher Run func called")
 	defer glog.Info("Shutting down PodWatcher")
+	glog.Info("Getting pod updates...")
 
-	go this.controller.Run(stopCh) //this call will popultate
+	go this.controller.Run(stopCh)
 
 	if !cache.WaitForCacheSync(stopCh, this.controller.HasSynced) {
 		glog.Info("Waiting in the run method for 3 sec")
@@ -130,29 +122,22 @@ func (this *PodWatcher) Run(stopCh <-chan struct{}, workers int) {
 		return
 	}
 
-	glog.Info("Starting the Pod watcher worker threads")
-
+	glog.Info("Starting the pod watching workers")
 	for i := 0; i < workers; i++ {
-		go wait.Until(this.PodWorker, time.Second, stopCh)
+		go wait.Until(this.podWorker, time.Second, stopCh)
 	}
 
 	<-stopCh
 }
 
-func (this *PodWatcher) PodWorker() {
-
-	glog.Info("PodWorker starting...")
+func (this *PodWatcher) podWorker() {
 	for {
 		func() {
-
-			glog.Info("Blocking in get func of PodWorker")
 			key, quit := this.podWorkQueue.Get()
-
 			if quit {
 				return
 			}
 			pod := key.(*Pod)
-
 			switch pod.State {
 			case "Pending":
 				var jd *firmament.JobDescriptor
@@ -175,9 +160,7 @@ func (this *PodWatcher) PodWorker() {
 			case "Unknown":
 				//firmament.TaskRemoved(fc)
 			}
-
 			glog.Info("Pod data received from the queue", pod)
-
 			defer this.podWorkQueue.Done(key)
 		}()
 	}

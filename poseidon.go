@@ -20,10 +20,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 
+	"github.com/ICGog/poseidongo/pkg/k8sclient"
 	"github.com/golang/glog"
-	"github.com/shivramsrivastava/poseidongo/pkg/k8sclient"
 )
 
 var (
@@ -35,14 +34,11 @@ var (
 func init() {
 	flag.StringVar(&firmamentAddress, "firmamentAddress", "127.0.0.1:9090", "Firmament scheduler address")
 	flag.StringVar(&kubeConfig, "kubeConfig", "kubeconfig.cfg", "Path to the kubeconfig file")
-	flag.StringVar(&poseidonSchedulerName, "poseidonSchedulerName", "poseidon-scheduler", "Name the running poseidon scheduler")
+	flag.StringVar(&poseidonSchedulerName, "poseidonSchedulerName", "poseidonScheduler", "Name of this instance of the Poseidon scheduler")
 	flag.Parse()
-	fmt.Println("Please refer poseidongo.INFO, poseidongo.ERROR, poseidongo.WARNING in the glog directory for more Info")
 }
 
 func main() {
-
-	glog.Info("Starting Poseidongo...")
+	glog.Info("Starting Poseidon...")
 	k8sclient.New(kubeConfig, poseidonSchedulerName)
-
 }
