@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 )
 
 const genPackage = "github.com/mailru/easyjson/gen"
@@ -60,7 +59,6 @@ func (g *Generator) writeStub() error {
 		fmt.Fprintln(f, ")")
 	}
 
-	sort.Strings(g.Types)
 	for _, t := range g.Types {
 		fmt.Fprintln(f)
 		if !g.NoStdMarshalers {
@@ -116,8 +114,6 @@ func (g *Generator) writeMain() (path string, err error) {
 	if g.NoStdMarshalers {
 		fmt.Fprintln(f, "  g.NoStdMarshalers()")
 	}
-
-	sort.Strings(g.Types)
 	for _, v := range g.Types {
 		fmt.Fprintln(f, "  g.Add(pkg.EasyJSON_exporter_"+v+"(nil))")
 	}
