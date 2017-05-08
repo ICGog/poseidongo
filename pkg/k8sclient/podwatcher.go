@@ -19,6 +19,7 @@
 package k8sclient
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/ICGog/poseidongo/pkg/firmament"
@@ -26,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -109,7 +111,10 @@ func (this *PodWatcher) enqueuePods(obj interface{}) {
 	glog.Info("enqueuePods: Added a new Pod", pod.Name)
 }
 
-func (this *PodWatcher) Run(stopCh <-chan struct{}, workers int) {
+func (this *PodWatcher) Run(stopCh <-chan struct{}, nWorkers int) {
+	defer utilruntime.HandleCrash()
+
+	// The workers can stop when we are done.
 	defer this.podWorkQueue.ShutDown()
 	defer glog.Info("Shutting down PodWatcher")
 	glog.Info("Getting pod updates...")
@@ -117,17 +122,17 @@ func (this *PodWatcher) Run(stopCh <-chan struct{}, workers int) {
 	go this.controller.Run(stopCh)
 
 	if !cache.WaitForCacheSync(stopCh, this.controller.HasSynced) {
-		glog.Info("Waiting in the run method for 3 sec")
-		time.Sleep(time.Second * 3)
+		utilruntime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
 
-	glog.Info("Starting the pod watching workers")
-	for i := 0; i < workers; i++ {
+	glog.Info("Starting pod watching workers")
+	for i := 0; i < nWorkers; i++ {
 		go wait.Until(this.podWorker, time.Second, stopCh)
 	}
 
 	<-stopCh
+	glog.Info("Stopping pod watcher")
 }
 
 func (this *PodWatcher) podWorker() {

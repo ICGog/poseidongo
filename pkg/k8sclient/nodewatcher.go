@@ -19,6 +19,7 @@
 package k8sclient
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -108,25 +110,28 @@ func (this *NodeWatcher) enqueueNodes(obj interface{}) {
 	glog.Info("enqueueNodes: Added a new node", node.Name)
 }
 
-func (this *NodeWatcher) Run(stopCh <-chan struct{}, workers int) {
+func (this *NodeWatcher) Run(stopCh <-chan struct{}, nWorkers int) {
+	defer utilruntime.HandleCrash()
+
+	// The workers can stop when we are done.
 	defer this.nodeWorkQueue.ShutDown()
 	defer glog.Info("Shutting down NodeWatcher")
 	glog.Info("Geting node updates...")
 
-	go this.controller.Run(stopCh) //this call will popultate the events
+	go this.controller.Run(stopCh)
 
 	if !cache.WaitForCacheSync(stopCh, this.controller.HasSynced) {
-		glog.Info("Waiting in the run method for 3 sec")
-		time.Sleep(time.Second * 3)
+		utilruntime.HandleError(fmt.Errorf("Timed out waiting for caches to sync"))
 		return
 	}
 
-	glog.Info("Starting the node watching workers")
-	for i := 0; i < workers; i++ {
+	glog.Info("Starting node watching workers")
+	for i := 0; i < nWorkers; i++ {
 		go wait.Until(this.nodeWorker, time.Second, stopCh)
 	}
 
 	<-stopCh
+	glog.Info("Stopping node watcher")
 }
 
 func (this *NodeWatcher) nodeWorker() {
