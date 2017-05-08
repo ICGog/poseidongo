@@ -1,0 +1,65 @@
+// Poseidon
+// Copyright (c) The Poseidon Authors.
+// All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT
+// LIMITATION ANY IMPLIED WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR
+// A PARTICULAR PURPOSE, MERCHANTABLITY OR NON-INFRINGEMENT.
+//
+// See the Apache Version 2.0 License for specific language governing
+// permissions and limitations under the License.
+
+syntax = "proto3";
+
+package stats;
+
+service PoseidonStats {
+  rpc ReceiveNodeStats(stream NodeStats) returns (stream NodeStatsResponse) {}
+  rpc ReceivePodStats(stream PodStats) returns (stream PodStatsResponse) {}
+}
+
+message NodeStats {
+  uint64 cpu_allocatable = 1;
+  uint64 cpu_capacity = 2;
+  uint64 cpu_reservation = 3;
+  uint64 cpu_utilization = 4;
+  uint64 mem_allocatable = 5;
+  uint64 mem_capacity = 6;
+  uint64 mem_reservation = 7;
+  uint64 mem_utilization = 8;
+}
+
+message NodeStatsResponse {
+}
+
+message PodStats {
+  uint64 cpu_limit = 1;
+  uint64 cpu_request = 2;
+  uint64 cpu_usage = 3;
+  uint64 mem_limit = 4;
+  uint64 mem_request = 5;
+  uint64 mem_usage = 6;
+  uint64 mem_working_set = 7;
+  uint64 mem_page_faults = 8;
+  double mem_page_faults_rate = 9;
+  uint64 major_page_faults = 10;
+  double major_page_faults_rate = 11;
+  uint64 net_rx = 12;
+  uint64 net_rx_errors = 13;
+  double net_rx_errors_rate = 14;
+  double net_rx_rate = 15;
+  uint64 net_tx = 16;
+  uint64 net_tx_errors = 17;
+  double net_tx_errors_rate = 18;
+  double net_tx_rate = 19;
+}
+
+message PodStatsResponse {
+}
