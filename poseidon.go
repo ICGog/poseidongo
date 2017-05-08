@@ -34,11 +34,10 @@ var (
 func init() {
 	flag.StringVar(&firmamentAddress, "firmamentAddress", "127.0.0.1:9090", "Firmament scheduler address")
 	flag.StringVar(&kubeConfig, "kubeConfig", "kubeconfig.cfg", "Path to the kubeconfig file")
-	flag.StringVar(&poseidonSchedulerName, "poseidonSchedulerName", "poseidonScheduler", "Name of this instance of the Poseidon scheduler")
 	flag.Parse()
 }
 
 func main() {
 	glog.Info("Starting Poseidon...")
-	k8sclient.New(kubeConfig, poseidonSchedulerName)
+	k8sclient.New(kubeConfig)
 }

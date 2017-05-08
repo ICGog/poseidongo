@@ -36,7 +36,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-func NewPodWatcher(client kubernetes.Interface, schedulerName string) *PodWatcher {
+func NewPodWatcher(client kubernetes.Interface) *PodWatcher {
 	glog.Info("Starting PodWatcher...")
 	podWatcher := &PodWatcher{clientset: client}
 	podStatuSelector := fields.ParseSelectorOrDie("spec.nodeName==")
