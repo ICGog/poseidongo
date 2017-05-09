@@ -35,50 +35,34 @@ var (
 	uuidMutex sync.Mutex
 )
 
-func init() {
-	glog.Info("Init Called")
-}
-
-//generateResourceID
-
-// GenerateUUID is seeded by the default random number generator
 func GenerateUUID() string {
 	var stringUUID string
-	// initialize the seed only once
+	// Initialize the seed only once.
 	seedOnce.Do(func() {
-		newRandSource := rand.New(rand.NewSource(time.Now().UnixNano()))
-		uuid.SetRand(newRandSource) // random number generator to be set once for UUID.
-		glog.Info("GenerateUUID: Seeding Once")
+		uuid.SetRand(rand.New(rand.NewSource(time.Now().UnixNano())))
 	})
-	// Need to lock with a mutex
-	// Since the Source generated from rand.NewSource is not thread safe.
+	// Lock with mutex because the rand source is not thread safe.
 	uuidMutex.Lock()
 	stringUUID = uuid.New().String()
 	uuidMutex.Unlock()
 	return stringUUID
 }
 
-// getBytes returns byte slice for the given value
+// getBytes returns byte slice for the given value.
 func getBytes(value interface{}) []byte {
 	var byteBuffer bytes.Buffer
 	gobEncoder := gob.NewEncoder(&byteBuffer)
 	if err := gobEncoder.Encode(value); err != nil {
-		glog.Fatalln("utils:getBytes failed to encode value")
+		glog.Fatalln("Failed to encode value")
 		return nil
 	}
 	return byteBuffer.Bytes()
 }
 
-// HashCombine return a hash for any type of values
 func HashCombine(valueOne, valueTwo interface{}) uint64 {
 	newHash := fnv.New64()
-
-	valueOneByte := getBytes(valueOne)
-	valueTwoByte := getBytes(valueTwo)
-
-	if valueOneByte != nil && valueTwoByte != nil {
-		newHash.Write(append(valueOneByte, valueTwoByte...))
-		return newHash.Sum64()
-	}
-	return 0
+	valueOneBytes := getBytes(valueOne)
+	valueTwoBytes := getBytes(valueTwo)
+	newHash.Write(append(valueOneBytes, valueTwoBytes...))
+	return newHash.Sum64()
 }

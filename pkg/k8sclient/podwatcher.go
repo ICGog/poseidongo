@@ -182,7 +182,6 @@ func (this *PodWatcher) createNewJob(controllerId string) *firmament.JobDescript
 
 func (this *PodWatcher) addTaskToJob(pod *Pod, jd *firmament.JobDescriptor) *firmament.TaskDescriptor {
 	task := &firmament.TaskDescriptor{
-		Uid:   this.generateRootTaskID(jd),
 		Name:  pod.Name,
 		State: firmament.TaskDescriptor_CREATED,
 		JobId: jd.Uuid,
@@ -201,19 +200,18 @@ func (this *PodWatcher) addTaskToJob(pod *Pod, jd *firmament.JobDescriptor) *fir
 			})
 	}
 	if jd.RootTask == nil {
+		task.Uid = this.generateTaskID(jd.Name, 0)
 		jd.RootTask = task
 	} else {
+		task.Uid = this.generateTaskID(jd.Name, len(jd.RootTask.Spawned)+1)
 		jd.RootTask.Spawned = append(jd.RootTask.Spawned, task)
 	}
 	return task
 }
 func (this *PodWatcher) generateJobID() string {
-	// TODO(ionel): Implement!
 	return GenerateUUID()
 }
 
-func (this *PodWatcher) generateRootTaskID(jd *firmament.JobDescriptor) uint64 {
-	// TODO(shiv): No error handling
-	return HashCombine(jd.GetName(), jd.GetRootTask().GetBinary())
-
+func (this *PodWatcher) generateTaskID(jdUid string, taskNum int) uint64 {
+	return HashCombine(jdUid, taskNum)
 }
