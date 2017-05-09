@@ -19,14 +19,12 @@
 package k8sclient
 
 import (
-	"github.com/ICGog/poseidongo/pkg/firmament"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"poseidongo/pkg/firmament"
 )
 
-const nodeBufferSize = 1000
-const podBufferSize = 1000
 const bytesToKb = 1024
 
 var podToTD map[string]*firmament.TaskDescriptor

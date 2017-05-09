@@ -23,7 +23,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ICGog/poseidongo/pkg/firmament"
+	"poseidongo/pkg/firmament"
+
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -198,5 +199,5 @@ func (this *NodeWatcher) createResourceTopologyForNode(node *Node) *firmament.Re
 
 func (this *NodeWatcher) generateResourceID() string {
 	// TODO(ionel): GenerateResourceID
-	return "test"
+	return GenerateUUID()
 }

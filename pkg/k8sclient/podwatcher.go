@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ICGog/poseidongo/pkg/firmament"
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -34,6 +33,7 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+	"poseidongo/pkg/firmament"
 )
 
 func NewPodWatcher(client kubernetes.Interface) *PodWatcher {
@@ -182,7 +182,7 @@ func (this *PodWatcher) createNewJob(controllerId string) *firmament.JobDescript
 
 func (this *PodWatcher) addTaskToJob(pod *Pod, jd *firmament.JobDescriptor) *firmament.TaskDescriptor {
 	task := &firmament.TaskDescriptor{
-		Uid:   this.generateRootTaskID(),
+		Uid:   this.generateRootTaskID(jd),
 		Name:  pod.Name,
 		State: firmament.TaskDescriptor_CREATED,
 		JobId: jd.Uuid,
@@ -209,10 +209,12 @@ func (this *PodWatcher) addTaskToJob(pod *Pod, jd *firmament.JobDescriptor) *fir
 }
 func (this *PodWatcher) generateJobID() string {
 	// TODO(ionel): Implement!
-	return "test"
+	return GenerateUUID()
 }
 
-func (this *PodWatcher) generateRootTaskID() uint64 {
-	// TODO(ionel): Implement!
-	return 0
+func (this *PodWatcher) generateRootTaskID(jd *firmament.JobDescriptor) uint64 {
+	// TODO(shiv): No error handling
+
+	return HashCombine(jd.GetName(), jd.GetRootTask().GetBinary())
+
 }
