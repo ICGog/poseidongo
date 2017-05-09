@@ -154,7 +154,7 @@ func (this *NodeWatcher) nodeWorker() {
 }
 
 func (this *NodeWatcher) createResourceTopologyForNode(node *Node) *firmament.ResourceTopologyNodeDescriptor {
-	resUuid := this.generateResourceID()
+	resUuid := this.generateResourceID(node.Hostname)
 	rtnd := &firmament.ResourceTopologyNodeDescriptor{
 		ResourceDesc: &firmament.ResourceDescriptor{
 			Uuid:         resUuid,
@@ -179,12 +179,13 @@ func (this *NodeWatcher) createResourceTopologyForNode(node *Node) *firmament.Re
 	// TODO(ionel): In the future, we want to get real node topology rather
 	// than manually connecting PU RDs to the machine RD.
 	for num_pu := int64(0); num_pu < node.CpuCapacity; num_pu++ {
+		friendlyName := node.Hostname + "_pu" + strconv.FormatInt(num_pu, 10)
 		puRtnd := &firmament.ResourceTopologyNodeDescriptor{
 			ResourceDesc: &firmament.ResourceDescriptor{
-				Uuid:         this.generateResourceID(),
+				Uuid:         this.generateResourceID(friendlyName),
 				Type:         firmament.ResourceDescriptor_RESOURCE_PU,
 				State:        firmament.ResourceDescriptor_RESOURCE_IDLE,
-				FriendlyName: node.Hostname + "_pu" + strconv.FormatInt(num_pu, 10),
+				FriendlyName: friendlyName,
 				Labels:       rtnd.ResourceDesc.Labels,
 			},
 			ParentId: resUuid,
@@ -194,6 +195,6 @@ func (this *NodeWatcher) createResourceTopologyForNode(node *Node) *firmament.Re
 	return rtnd
 }
 
-func (this *NodeWatcher) generateResourceID() string {
-	return GenerateUUID()
+func (this *NodeWatcher) generateResourceID(seed string) string {
+	return GenerateUUID(seed)
 }

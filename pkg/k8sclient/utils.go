@@ -24,7 +24,6 @@ import (
 	"hash/fnv"
 	"math/rand"
 	"sync"
-	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/uuid"
@@ -35,14 +34,11 @@ var (
 	uuidMutex sync.Mutex
 )
 
-func GenerateUUID() string {
+func GenerateUUID(seed string) string {
 	var stringUUID string
-	// Initialize the seed only once.
-	seedOnce.Do(func() {
-		uuid.SetRand(rand.New(rand.NewSource(time.Now().UnixNano())))
-	})
-	// Lock with mutex because the rand source is not thread safe.
+	// Lock with muex because we change the rand source.
 	uuidMutex.Lock()
+	uuid.SetRand(rand.New(rand.NewSource(int64(hash(seed)))))
 	stringUUID = uuid.New().String()
 	uuidMutex.Unlock()
 	return stringUUID
@@ -57,6 +53,12 @@ func getBytes(value interface{}) []byte {
 		return nil
 	}
 	return byteBuffer.Bytes()
+}
+
+func hash(valueOne interface{}) uint64 {
+	newHash := fnv.New64()
+	newHash.Write(getBytes(valueOne))
+	return newHash.Sum64()
 }
 
 func HashCombine(valueOne, valueTwo interface{}) uint64 {

@@ -99,7 +99,7 @@ func (this *PodWatcher) enqueuePods(obj interface{}) {
 		podPhase = "Failed"
 	}
 	newpod := &Pod{
-		Name:         pod.Name,
+		Name:         pod.Namespace + "/" + pod.Name,
 		State:        podPhase,
 		CpuRequest:   cpuReq,
 		MemRequestKb: memReq / bytesToKb,
@@ -145,20 +145,24 @@ func (this *PodWatcher) podWorker() {
 			pod := key.(*Pod)
 			switch pod.State {
 			case "Pending":
-				var jd *firmament.JobDescriptor
-				var ok bool
-				jd, ok = jobMap[this.generateJobID()]
-				if !ok {
-					jd = this.createNewJob("")
-				}
-				glog.Info("Firmament Jobdescriptor ", jd)
+				// TODO(ionel): We generate a job per pod. Add a field to the Pod struct that uniquely identifies jobs/daemon sets and use that one instead to group pods into Firmament jobs.
+				//jd, ok := jobMap[this.generateJobID(pod.Name)]
+				//if !ok {
+				//	jd = this.createNewJob(pod.Name)
+				//}
 				//td := this.addTaskToJob(pod, jd)
 				//firmament.TaskSubmitted(fc, td)
 			case "Succeeded":
 				//td, ok := podToTD[pod.Name]
+				//if !ok {
+				//	glog.Fatalf("Pod %v does not exist", pod.Name)
+				//}
 				//firmament.TaskCompleted(fc, td)
 			case "Failed":
 				//td, ok := podToTD[pod.Name]
+				//if !ok {
+				//	glog.Fatalf("Pod %v does not exist", pod.Name)
+				//}
 				//firmament.TaskFailed(fc, td)
 			case "Running":
 				//firmament.AddTaskStats(fc)
@@ -171,10 +175,10 @@ func (this *PodWatcher) podWorker() {
 	}
 }
 
-func (this *PodWatcher) createNewJob(controllerId string) *firmament.JobDescriptor {
+func (this *PodWatcher) createNewJob(jobName string) *firmament.JobDescriptor {
 	jobDesc := &firmament.JobDescriptor{
-		Uuid:  this.generateJobID(),
-		Name:  controllerId,
+		Uuid:  this.generateJobID(jobName),
+		Name:  jobName,
 		State: firmament.JobDescriptor_CREATED,
 	}
 	return jobDesc
@@ -208,8 +212,8 @@ func (this *PodWatcher) addTaskToJob(pod *Pod, jd *firmament.JobDescriptor) *fir
 	}
 	return task
 }
-func (this *PodWatcher) generateJobID() string {
-	return GenerateUUID()
+func (this *PodWatcher) generateJobID(seed string) string {
+	return GenerateUUID(seed)
 }
 
 func (this *PodWatcher) generateTaskID(jdUid string, taskNum int) uint64 {
