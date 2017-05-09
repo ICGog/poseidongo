@@ -1,4 +1,4 @@
-memo = "2f35547bc54f7e7fa4077ba4b117f9e40ac7370f8d80ba9d42f48883c9ec5d21"
+memo = "880c7731876ffa752ab5868c793cff08d28ab00d12a559756ad1c9a62d21cb85"
 
 [[projects]]
   name = "github.com/PuerkitoBio/purell"
@@ -113,6 +113,12 @@ memo = "2f35547bc54f7e7fa4077ba4b117f9e40ac7370f8d80ba9d42f48883c9ec5d21"
   name = "github.com/google/gofuzz"
   packages = ["."]
   revision = "44d81051d367757e1c7c6a5a86423ece9afcf63c"
+
+[[projects]]
+  name = "github.com/google/uuid"
+  packages = ["."]
+  revision = "064e2069ce9c359c118179501254f67d7d37ba24"
+  version = "0.2"
 
 [[projects]]
   branch = "master"
