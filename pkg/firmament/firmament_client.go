@@ -19,6 +19,9 @@
 package firmament
 
 import (
+	"fmt"
+
+	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -29,51 +32,108 @@ func Schedule(client FirmamentSchedulerClient) {
 }
 
 func TaskCompleted(client FirmamentSchedulerClient, tuid *TaskUID) {
-	_, err := client.TaskCompleted(context.Background(), tuid)
+	tCompletedResp, err := client.TaskCompleted(context.Background(), tuid)
 	if err != nil {
 		grpclog.Fatalf("%v.TaskCompleted(_) = _, %v: ", client, err)
+	}
+	switch tCompletedResp.Type {
+	case TaskReplyType_TASK_NOT_FOUND:
+		glog.Fatalf("Task %v not found", tuid.TaskUid)
+	case TaskReplyType_TASK_JOB_NOT_FOUND:
+		glog.Fatalf("Task's %v job not found", tuid.TaskUid)
+	case TaskReplyType_TASK_COMPLETED_OK:
+	default:
+		panic(fmt.Sprintf("Unexpected TaskCompleted response %v for task %v", tCompletedResp, tuid.TaskUid))
 	}
 }
 
 func TaskFailed(client FirmamentSchedulerClient, tuid *TaskUID) {
-	_, err := client.TaskFailed(context.Background(), tuid)
+	tFailedResp, err := client.TaskFailed(context.Background(), tuid)
 	if err != nil {
 		grpclog.Fatalf("%v.TaskFailed(_) = _, %v: ", client, err)
+	}
+	switch tFailedResp.Type {
+	case TaskReplyType_TASK_NOT_FOUND:
+		glog.Fatalf("Task %v not found", tuid.TaskUid)
+	case TaskReplyType_TASK_JOB_NOT_FOUND:
+		glog.Fatalf("Task's %v job not found", tuid.TaskUid)
+	case TaskReplyType_TASK_FAILED_OK:
+	default:
+		panic(fmt.Sprintf("Unexpected TaskFailed response %v for task %v", tFailedResp, tuid.TaskUid))
 	}
 }
 
 func TaskRemoved(client FirmamentSchedulerClient, tuid *TaskUID) {
-	_, err := client.TaskRemoved(context.Background(), tuid)
+	tRemovedResp, err := client.TaskRemoved(context.Background(), tuid)
 	if err != nil {
 		grpclog.Fatalf("%v.TaskRemoved(_) = _, %v: ", client, err)
+	}
+	switch tRemovedResp.Type {
+	case TaskReplyType_TASK_NOT_FOUND:
+		glog.Fatalf("Task %v not found", tuid.TaskUid)
+	case TaskReplyType_TASK_JOB_NOT_FOUND:
+		glog.Fatalf("Task's %v job not found", tuid.TaskUid)
+	case TaskReplyType_TASK_REMOVED_OK:
+	default:
+		panic(fmt.Sprintf("Unexpected TaskRemoved response %v for task %v", tRemovedResp, tuid.TaskUid))
 	}
 }
 
 func TaskSubmitted(client FirmamentSchedulerClient, td *TaskDescription) {
-	_, err := client.TaskSubmitted(context.Background(), td)
+	tSubmittedResp, err := client.TaskSubmitted(context.Background(), td)
 	if err != nil {
 		grpclog.Fatalf("%v.TaskSubmitted(_) = _, %v: ", client, err)
+	}
+	switch tSubmittedResp.Type {
+	case TaskReplyType_TASK_ALREADY_SUBMITTED:
+		glog.Fatalf("Task (%v,%v) already submitted", td.JobDescriptor.Uuid, td.TaskDescriptor.Uid)
+	case TaskReplyType_TASK_STATE_NOT_CREATED:
+		glog.Fatalf("Task (%v,%v) not in created state", td.JobDescriptor.Uuid, td.TaskDescriptor.Uid)
+	case TaskReplyType_TASK_SUBMITTED_OK:
+	default:
+		panic(fmt.Sprintf("Unexpected TaskSubmitted response %v for task (%v,%v)", tSubmittedResp, td.JobDescriptor.Uuid, td.TaskDescriptor.Uid))
 	}
 }
 
 func NodeAdded(client FirmamentSchedulerClient, rtnd *ResourceTopologyNodeDescriptor) {
-	_, err := client.NodeAdded(context.Background(), rtnd)
+	nAddedResp, err := client.NodeAdded(context.Background(), rtnd)
 	if err != nil {
 		grpclog.Fatalf("%v.NodeAdded(_) = _, %v: ", client, err)
+	}
+	switch nAddedResp.Type {
+	case NodeReplyType_NODE_ALREADY_EXISTS:
+		glog.Fatalf("Tried to add existing node %v", rtnd.ResourceDesc.Uuid)
+	case NodeReplyType_NODE_ADDED_OK:
+	default:
+		panic(fmt.Sprintf("Unexpected NodeAdded response %v for node %v", nAddedResp, rtnd.ResourceDesc.Uuid))
 	}
 }
 
 func NodeFailed(client FirmamentSchedulerClient, ruid *ResourceUID) {
-	_, err := client.NodeFailed(context.Background(), ruid)
+	nFailedResp, err := client.NodeFailed(context.Background(), ruid)
 	if err != nil {
 		grpclog.Fatalf("%v.NodeFailed(_) = _, %v: ", client, err)
+	}
+	switch nFailedResp.Type {
+	case NodeReplyType_NODE_NOT_FOUND:
+		glog.Fatalf("Tried to fail non-existing node %v", ruid.ResourceUid)
+	case NodeReplyType_NODE_FAILED_OK:
+	default:
+		panic(fmt.Sprintf("Unexpected NodeFailed response %v for node %v", nFailedResp, ruid.ResourceUid))
 	}
 }
 
 func NodeRemoved(client FirmamentSchedulerClient, ruid *ResourceUID) {
-	_, err := client.NodeRemoved(context.Background(), ruid)
+	nRemovedResp, err := client.NodeRemoved(context.Background(), ruid)
 	if err != nil {
 		grpclog.Fatalf("%v.NodeRemoved(_) = _, %v: ", client, err)
+	}
+	switch nRemovedResp.Type {
+	case NodeReplyType_NODE_NOT_FOUND:
+		glog.Fatalf("Tried to remove non-existing node %v", ruid.ResourceUid)
+	case NodeReplyType_NODE_REMOVED_OK:
+	default:
+		panic(fmt.Sprintf("Unexpected NodeRemoved response %v for node %v", nRemovedResp, ruid.ResourceUid))
 	}
 }
 
