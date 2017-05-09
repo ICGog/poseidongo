@@ -19,10 +19,10 @@
 package k8sclient
 
 import (
+	"github.com/ICGog/poseidongo/pkg/firmament"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"poseidongo/pkg/firmament"
 )
 
 const bytesToKb = 1024

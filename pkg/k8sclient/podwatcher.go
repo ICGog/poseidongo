@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ICGog/poseidongo/pkg/firmament"
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -33,7 +34,6 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"poseidongo/pkg/firmament"
 )
 
 func NewPodWatcher(client kubernetes.Interface) *PodWatcher {
@@ -214,7 +214,6 @@ func (this *PodWatcher) generateJobID() string {
 
 func (this *PodWatcher) generateRootTaskID(jd *firmament.JobDescriptor) uint64 {
 	// TODO(shiv): No error handling
-
 	return HashCombine(jd.GetName(), jd.GetRootTask().GetBinary())
 
 }

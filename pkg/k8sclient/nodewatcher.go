@@ -23,8 +23,7 @@ import (
 	"strconv"
 	"time"
 
-	"poseidongo/pkg/firmament"
-
+	"github.com/ICGog/poseidongo/pkg/firmament"
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

@@ -19,14 +19,12 @@
 package k8sclient
 
 import (
-	"math/rand"
-	"time"
-
-	"sync"
-
 	"bytes"
 	"encoding/gob"
 	"hash/fnv"
+	"math/rand"
+	"sync"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/uuid"
@@ -37,10 +35,8 @@ var (
 	uuidMutex sync.Mutex
 )
 
-func inti() {
-
+func init() {
 	glog.Info("Init Called")
-
 }
 
 //generateResourceID
@@ -59,9 +55,7 @@ func GenerateUUID() string {
 	uuidMutex.Lock()
 	stringUUID = uuid.New().String()
 	uuidMutex.Unlock()
-
 	return stringUUID
-
 }
 
 // getBytes returns byte slice for the given value
@@ -73,7 +67,6 @@ func getBytes(value interface{}) []byte {
 		return nil
 	}
 	return byteBuffer.Bytes()
-
 }
 
 // HashCombine return a hash for any type of values
@@ -84,10 +77,8 @@ func HashCombine(valueOne, valueTwo interface{}) uint64 {
 	valueTwoByte := getBytes(valueTwo)
 
 	if valueOneByte != nil && valueTwoByte != nil {
-
 		newHash.Write(append(valueOneByte, valueTwoByte...))
 		return newHash.Sum64()
 	}
-
 	return 0
 }
