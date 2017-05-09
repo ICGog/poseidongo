@@ -2,39 +2,11 @@
 // source: firmament_scheduler.proto
 // DO NOT EDIT!
 
-/*
-Package firmament is a generated protocol buffer package.
-
-It is generated from these files:
-	firmament_scheduler.proto
-
-It has these top-level messages:
-	ScheduleRequest
-	SchedulingDeltas
-	TaskCompletedResponse
-	TaskDescription
-	TaskSubmittedResponse
-	TaskRemovedResponse
-	TaskFailedResponse
-	NodeAddedResponse
-	NodeRemovedResponse
-	NodeFailedResponse
-	TaskStatsResponse
-	ResourceStatsResponse
-	TaskUID
-	ResourceUID
-	TaskStats
-	ResourceStats
-*/
 package firmament
 
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import firmament7 "."
-import firmament6 "."
-import firmament11 "."
-import firmament12 "."
 
 import (
 	context "golang.org/x/net/context"
@@ -45,12 +17,6 @@ import (
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the proto package it is being compiled against.
-// A compilation error at this line likely means your copy of the
-// proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type TaskReplyType int32
 
@@ -89,7 +55,7 @@ var TaskReplyType_value = map[string]int32{
 func (x TaskReplyType) String() string {
 	return proto.EnumName(TaskReplyType_name, int32(x))
 }
-func (TaskReplyType) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (TaskReplyType) EnumDescriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
 
 type NodeReplyType int32
 
@@ -119,7 +85,7 @@ var NodeReplyType_value = map[string]int32{
 func (x NodeReplyType) String() string {
 	return proto.EnumName(NodeReplyType_name, int32(x))
 }
-func (NodeReplyType) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (NodeReplyType) EnumDescriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
 
 type ScheduleRequest struct {
 }
@@ -127,18 +93,18 @@ type ScheduleRequest struct {
 func (m *ScheduleRequest) Reset()                    { *m = ScheduleRequest{} }
 func (m *ScheduleRequest) String() string            { return proto.CompactTextString(m) }
 func (*ScheduleRequest) ProtoMessage()               {}
-func (*ScheduleRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (*ScheduleRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
 
 type SchedulingDeltas struct {
-	Deltas []*firmament12.SchedulingDelta `protobuf:"bytes,1,rep,name=deltas" json:"deltas,omitempty"`
+	Deltas []*SchedulingDelta `protobuf:"bytes,1,rep,name=deltas" json:"deltas,omitempty"`
 }
 
 func (m *SchedulingDeltas) Reset()                    { *m = SchedulingDeltas{} }
 func (m *SchedulingDeltas) String() string            { return proto.CompactTextString(m) }
 func (*SchedulingDeltas) ProtoMessage()               {}
-func (*SchedulingDeltas) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*SchedulingDeltas) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
 
-func (m *SchedulingDeltas) GetDeltas() []*firmament12.SchedulingDelta {
+func (m *SchedulingDeltas) GetDeltas() []*SchedulingDelta {
 	if m != nil {
 		return m.Deltas
 	}
@@ -152,7 +118,7 @@ type TaskCompletedResponse struct {
 func (m *TaskCompletedResponse) Reset()                    { *m = TaskCompletedResponse{} }
 func (m *TaskCompletedResponse) String() string            { return proto.CompactTextString(m) }
 func (*TaskCompletedResponse) ProtoMessage()               {}
-func (*TaskCompletedResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (*TaskCompletedResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
 
 func (m *TaskCompletedResponse) GetType() TaskReplyType {
 	if m != nil {
@@ -162,23 +128,23 @@ func (m *TaskCompletedResponse) GetType() TaskReplyType {
 }
 
 type TaskDescription struct {
-	TaskDescriptor *firmament6.TaskDescriptor `protobuf:"bytes,1,opt,name=task_descriptor,json=taskDescriptor" json:"task_descriptor,omitempty"`
-	JobDescriptor  *firmament7.JobDescriptor  `protobuf:"bytes,2,opt,name=job_descriptor,json=jobDescriptor" json:"job_descriptor,omitempty"`
+	TaskDescriptor *TaskDescriptor `protobuf:"bytes,1,opt,name=task_descriptor,json=taskDescriptor" json:"task_descriptor,omitempty"`
+	JobDescriptor  *JobDescriptor  `protobuf:"bytes,2,opt,name=job_descriptor,json=jobDescriptor" json:"job_descriptor,omitempty"`
 }
 
 func (m *TaskDescription) Reset()                    { *m = TaskDescription{} }
 func (m *TaskDescription) String() string            { return proto.CompactTextString(m) }
 func (*TaskDescription) ProtoMessage()               {}
-func (*TaskDescription) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*TaskDescription) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
 
-func (m *TaskDescription) GetTaskDescriptor() *firmament6.TaskDescriptor {
+func (m *TaskDescription) GetTaskDescriptor() *TaskDescriptor {
 	if m != nil {
 		return m.TaskDescriptor
 	}
 	return nil
 }
 
-func (m *TaskDescription) GetJobDescriptor() *firmament7.JobDescriptor {
+func (m *TaskDescription) GetJobDescriptor() *JobDescriptor {
 	if m != nil {
 		return m.JobDescriptor
 	}
@@ -192,7 +158,7 @@ type TaskSubmittedResponse struct {
 func (m *TaskSubmittedResponse) Reset()                    { *m = TaskSubmittedResponse{} }
 func (m *TaskSubmittedResponse) String() string            { return proto.CompactTextString(m) }
 func (*TaskSubmittedResponse) ProtoMessage()               {}
-func (*TaskSubmittedResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*TaskSubmittedResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{4} }
 
 func (m *TaskSubmittedResponse) GetType() TaskReplyType {
 	if m != nil {
@@ -208,7 +174,7 @@ type TaskRemovedResponse struct {
 func (m *TaskRemovedResponse) Reset()                    { *m = TaskRemovedResponse{} }
 func (m *TaskRemovedResponse) String() string            { return proto.CompactTextString(m) }
 func (*TaskRemovedResponse) ProtoMessage()               {}
-func (*TaskRemovedResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*TaskRemovedResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{5} }
 
 func (m *TaskRemovedResponse) GetType() TaskReplyType {
 	if m != nil {
@@ -224,7 +190,7 @@ type TaskFailedResponse struct {
 func (m *TaskFailedResponse) Reset()                    { *m = TaskFailedResponse{} }
 func (m *TaskFailedResponse) String() string            { return proto.CompactTextString(m) }
 func (*TaskFailedResponse) ProtoMessage()               {}
-func (*TaskFailedResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*TaskFailedResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{6} }
 
 func (m *TaskFailedResponse) GetType() TaskReplyType {
 	if m != nil {
@@ -240,7 +206,7 @@ type NodeAddedResponse struct {
 func (m *NodeAddedResponse) Reset()                    { *m = NodeAddedResponse{} }
 func (m *NodeAddedResponse) String() string            { return proto.CompactTextString(m) }
 func (*NodeAddedResponse) ProtoMessage()               {}
-func (*NodeAddedResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*NodeAddedResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{7} }
 
 func (m *NodeAddedResponse) GetType() NodeReplyType {
 	if m != nil {
@@ -256,7 +222,7 @@ type NodeRemovedResponse struct {
 func (m *NodeRemovedResponse) Reset()                    { *m = NodeRemovedResponse{} }
 func (m *NodeRemovedResponse) String() string            { return proto.CompactTextString(m) }
 func (*NodeRemovedResponse) ProtoMessage()               {}
-func (*NodeRemovedResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*NodeRemovedResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{8} }
 
 func (m *NodeRemovedResponse) GetType() NodeReplyType {
 	if m != nil {
@@ -272,7 +238,7 @@ type NodeFailedResponse struct {
 func (m *NodeFailedResponse) Reset()                    { *m = NodeFailedResponse{} }
 func (m *NodeFailedResponse) String() string            { return proto.CompactTextString(m) }
 func (*NodeFailedResponse) ProtoMessage()               {}
-func (*NodeFailedResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+func (*NodeFailedResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{9} }
 
 func (m *NodeFailedResponse) GetType() NodeReplyType {
 	if m != nil {
@@ -288,7 +254,7 @@ type TaskStatsResponse struct {
 func (m *TaskStatsResponse) Reset()                    { *m = TaskStatsResponse{} }
 func (m *TaskStatsResponse) String() string            { return proto.CompactTextString(m) }
 func (*TaskStatsResponse) ProtoMessage()               {}
-func (*TaskStatsResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+func (*TaskStatsResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{10} }
 
 func (m *TaskStatsResponse) GetType() TaskReplyType {
 	if m != nil {
@@ -304,7 +270,7 @@ type ResourceStatsResponse struct {
 func (m *ResourceStatsResponse) Reset()                    { *m = ResourceStatsResponse{} }
 func (m *ResourceStatsResponse) String() string            { return proto.CompactTextString(m) }
 func (*ResourceStatsResponse) ProtoMessage()               {}
-func (*ResourceStatsResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+func (*ResourceStatsResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{11} }
 
 func (m *ResourceStatsResponse) GetType() NodeReplyType {
 	if m != nil {
@@ -320,7 +286,7 @@ type TaskUID struct {
 func (m *TaskUID) Reset()                    { *m = TaskUID{} }
 func (m *TaskUID) String() string            { return proto.CompactTextString(m) }
 func (*TaskUID) ProtoMessage()               {}
-func (*TaskUID) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+func (*TaskUID) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{12} }
 
 func (m *TaskUID) GetTaskUid() uint64 {
 	if m != nil {
@@ -336,7 +302,7 @@ type ResourceUID struct {
 func (m *ResourceUID) Reset()                    { *m = ResourceUID{} }
 func (m *ResourceUID) String() string            { return proto.CompactTextString(m) }
 func (*ResourceUID) ProtoMessage()               {}
-func (*ResourceUID) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*ResourceUID) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{13} }
 
 func (m *ResourceUID) GetResourceUid() string {
 	if m != nil {
@@ -371,7 +337,7 @@ type TaskStats struct {
 func (m *TaskStats) Reset()                    { *m = TaskStats{} }
 func (m *TaskStats) String() string            { return proto.CompactTextString(m) }
 func (*TaskStats) ProtoMessage()               {}
-func (*TaskStats) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*TaskStats) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{14} }
 
 func (m *TaskStats) GetTaskUid() *TaskUID {
 	if m != nil {
@@ -528,7 +494,7 @@ type ResourceStats struct {
 func (m *ResourceStats) Reset()                    { *m = ResourceStats{} }
 func (m *ResourceStats) String() string            { return proto.CompactTextString(m) }
 func (*ResourceStats) ProtoMessage()               {}
-func (*ResourceStats) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+func (*ResourceStats) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{15} }
 
 func (m *ResourceStats) GetResourceUid() *ResourceUID {
 	if m != nil {
@@ -630,7 +596,7 @@ type FirmamentSchedulerClient interface {
 	TaskFailed(ctx context.Context, in *TaskUID, opts ...grpc.CallOption) (*TaskFailedResponse, error)
 	TaskRemoved(ctx context.Context, in *TaskUID, opts ...grpc.CallOption) (*TaskRemovedResponse, error)
 	TaskSubmitted(ctx context.Context, in *TaskDescription, opts ...grpc.CallOption) (*TaskSubmittedResponse, error)
-	NodeAdded(ctx context.Context, in *firmament11.ResourceTopologyNodeDescriptor, opts ...grpc.CallOption) (*NodeAddedResponse, error)
+	NodeAdded(ctx context.Context, in *ResourceTopologyNodeDescriptor, opts ...grpc.CallOption) (*NodeAddedResponse, error)
 	NodeFailed(ctx context.Context, in *ResourceUID, opts ...grpc.CallOption) (*NodeFailedResponse, error)
 	NodeRemoved(ctx context.Context, in *ResourceUID, opts ...grpc.CallOption) (*NodeRemovedResponse, error)
 	AddTaskStats(ctx context.Context, in *TaskStats, opts ...grpc.CallOption) (*TaskStatsResponse, error)
@@ -690,7 +656,7 @@ func (c *firmamentSchedulerClient) TaskSubmitted(ctx context.Context, in *TaskDe
 	return out, nil
 }
 
-func (c *firmamentSchedulerClient) NodeAdded(ctx context.Context, in *firmament11.ResourceTopologyNodeDescriptor, opts ...grpc.CallOption) (*NodeAddedResponse, error) {
+func (c *firmamentSchedulerClient) NodeAdded(ctx context.Context, in *ResourceTopologyNodeDescriptor, opts ...grpc.CallOption) (*NodeAddedResponse, error) {
 	out := new(NodeAddedResponse)
 	err := grpc.Invoke(ctx, "/firmament.FirmamentScheduler/NodeAdded", in, out, c.cc, opts...)
 	if err != nil {
@@ -743,7 +709,7 @@ type FirmamentSchedulerServer interface {
 	TaskFailed(context.Context, *TaskUID) (*TaskFailedResponse, error)
 	TaskRemoved(context.Context, *TaskUID) (*TaskRemovedResponse, error)
 	TaskSubmitted(context.Context, *TaskDescription) (*TaskSubmittedResponse, error)
-	NodeAdded(context.Context, *firmament11.ResourceTopologyNodeDescriptor) (*NodeAddedResponse, error)
+	NodeAdded(context.Context, *ResourceTopologyNodeDescriptor) (*NodeAddedResponse, error)
 	NodeFailed(context.Context, *ResourceUID) (*NodeFailedResponse, error)
 	NodeRemoved(context.Context, *ResourceUID) (*NodeRemovedResponse, error)
 	AddTaskStats(context.Context, *TaskStats) (*TaskStatsResponse, error)
@@ -845,7 +811,7 @@ func _FirmamentScheduler_TaskSubmitted_Handler(srv interface{}, ctx context.Cont
 }
 
 func _FirmamentScheduler_NodeAdded_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(firmament11.ResourceTopologyNodeDescriptor)
+	in := new(ResourceTopologyNodeDescriptor)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -857,7 +823,7 @@ func _FirmamentScheduler_NodeAdded_Handler(srv interface{}, ctx context.Context,
 		FullMethod: "/firmament.FirmamentScheduler/NodeAdded",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FirmamentSchedulerServer).NodeAdded(ctx, req.(*firmament11.ResourceTopologyNodeDescriptor))
+		return srv.(FirmamentSchedulerServer).NodeAdded(ctx, req.(*ResourceTopologyNodeDescriptor))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -983,9 +949,9 @@ var _FirmamentScheduler_serviceDesc = grpc.ServiceDesc{
 	Metadata: "firmament_scheduler.proto",
 }
 
-func init() { proto.RegisterFile("firmament_scheduler.proto", fileDescriptor0) }
+func init() { proto.RegisterFile("firmament_scheduler.proto", fileDescriptor1) }
 
-var fileDescriptor0 = []byte{
+var fileDescriptor1 = []byte{
 	// 1169 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x9c, 0x57, 0x5d, 0x72, 0xe3, 0x44,
 	0x17, 0xb5, 0x27, 0x76, 0x12, 0x5f, 0x8d, 0xff, 0x3a, 0x93, 0x7c, 0x8a, 0xe7, 0x23, 0x64, 0x54,
