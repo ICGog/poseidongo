@@ -21,6 +21,7 @@ package main
 import (
 	"flag"
 
+	"github.com/ICGog/poseidongo/pkg/firmament"
 	"github.com/ICGog/poseidongo/pkg/k8sclient"
 	"github.com/golang/glog"
 )
@@ -37,7 +38,23 @@ func init() {
 	flag.Parse()
 }
 
+func schedule(fc firmament.FirmamentSchedulerClient) {
+	deltas := firmament.Schedule(fc)
+	for _, delta := range deltas.GetDeltas() {
+		switch delta.GetType() {
+		case firmament.SchedulingDelta_PLACE:
+		case firmament.SchedulingDelta_PREEMPT:
+		case firmament.SchedulingDelta_MIGRATE:
+		case firmament.SchedulingDelta_NOOP:
+		}
+	}
+}
+
 func main() {
 	glog.Info("Starting Poseidon...")
+	// fc, err := firmament.New(firmamentAddress)
+	// if err != nil {
+	// return
+	// }
 	k8sclient.New(kubeConfig)
 }

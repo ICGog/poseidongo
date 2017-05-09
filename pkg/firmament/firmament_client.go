@@ -27,8 +27,12 @@ import (
 	"google.golang.org/grpc/grpclog"
 )
 
-func Schedule(client FirmamentSchedulerClient) {
-	// TODO(ionel): Implement!
+func Schedule(client FirmamentSchedulerClient) *SchedulingDeltas {
+	scheduleResp, err := client.Schedule(context.Background(), &ScheduleRequest{})
+	if err != nil {
+		grpclog.Fatalf("%v.Schedule(_) = _, %v: ", client, err)
+	}
+	return scheduleResp
 }
 
 func TaskCompleted(client FirmamentSchedulerClient, tuid *TaskUID) {
