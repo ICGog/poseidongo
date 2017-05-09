@@ -21,8 +21,8 @@ package main
 import (
 	"flag"
 
-	"github.com/ICGog/poseidongo/pkg/k8sclient"
 	"github.com/golang/glog"
+	"poseidongo/pkg/k8sclient"
 )
 
 var (
