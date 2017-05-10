@@ -38,7 +38,12 @@ import (
 
 func NewPodWatcher(client kubernetes.Interface, firmamentAddress string) *PodWatcher {
 	glog.Info("Starting PodWatcher...")
-	fc, err := firmament.New(firmamentAddress)
+	podToTD = make(map[string]*firmament.TaskDescriptor)
+	TaskIDToPod = make(map[uint64]string)
+	jobIDToJD = make(map[string]*firmament.JobDescriptor)
+	jobNumIncompleteTasks = make(map[string]int)
+	// TODO(ionel): Close connection.
+	fc, _, err := firmament.New(firmamentAddress)
 	if err != nil {
 		panic(err)
 	}
@@ -182,7 +187,7 @@ func (this *PodWatcher) podWorker() {
 			case PodSucceeded:
 				td, ok := podToTD[pod.Name]
 				if !ok {
-					glog.Fatalf("Pod %v does not exist", pod.Name)
+					glog.Fatalf("Pod %s does not exist", pod.Name)
 				}
 				firmament.TaskCompleted(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
 				delete(podToTD, pod.Name)
@@ -202,7 +207,7 @@ func (this *PodWatcher) podWorker() {
 			case PodDeleted:
 				td, ok := podToTD[pod.Name]
 				if !ok {
-					glog.Fatalf("Pod %v does not exist", pod.Name)
+					glog.Fatalf("Pod %s does not exist", pod.Name)
 				}
 				firmament.TaskRemoved(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
 				delete(podToTD, pod.Name)
@@ -222,7 +227,7 @@ func (this *PodWatcher) podWorker() {
 			case PodFailed:
 				td, ok := podToTD[pod.Name]
 				if !ok {
-					glog.Fatalf("Pod %v does not exist", pod.Name)
+					glog.Fatalf("Pod %s does not exist", pod.Name)
 				}
 				firmament.TaskFailed(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
 				// TODO(ionel): We do not delete the task from podToTD and taskIDToPod in case the task may be rescheduled. Check how K8s restart policies work and decide what to do here.
@@ -230,7 +235,7 @@ func (this *PodWatcher) podWorker() {
 			case PodRunning:
 				// We don't have to do anything.
 			case PodUnknown:
-				glog.Error("Pod %v in uknown state", pod.Name)
+				glog.Errorf("Pod %s in unknown state", pod.Name)
 				// TODO(ionel): Handle Unknown case.
 			default:
 				glog.Fatalf("Pod %v in unexpected state %v", pod.Name, pod.State)

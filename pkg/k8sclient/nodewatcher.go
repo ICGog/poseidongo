@@ -38,7 +38,10 @@ import (
 
 func NewNodeWatcher(client kubernetes.Interface, firmamentAddress string) *NodeWatcher {
 	glog.Info("Starting NodeWatcher...")
-	fc, err := firmament.New(firmamentAddress)
+	nodeToRTND = make(map[string]*firmament.ResourceTopologyNodeDescriptor)
+	ResIDToNode = make(map[string]string)
+	// TODO(ionel): Close connection.
+	fc, _, err := firmament.New(firmamentAddress)
 	if err != nil {
 		panic(err)
 	}
@@ -169,7 +172,7 @@ func (this *NodeWatcher) nodeWorker() {
 				rtnd := this.createResourceTopologyForNode(node)
 				_, ok := nodeToRTND[node.Hostname]
 				if ok {
-					glog.Fatalf("Node %v already exists", node.Hostname)
+					glog.Fatalf("Node %s already exists", node.Hostname)
 				}
 				nodeToRTND[node.Hostname] = rtnd
 				ResIDToNode[rtnd.GetResourceDesc().GetUuid()] = node.Hostname
@@ -177,7 +180,7 @@ func (this *NodeWatcher) nodeWorker() {
 			case NodeDeleted:
 				rtnd, ok := nodeToRTND[node.Hostname]
 				if !ok {
-					glog.Fatalf("Node %v does not exist", node.Hostname)
+					glog.Fatalf("Node %s does not exist", node.Hostname)
 				}
 				resID := rtnd.GetResourceDesc().GetUuid()
 				firmament.NodeRemoved(this.fc, &firmament.ResourceUID{ResourceUid: resID})
@@ -186,7 +189,7 @@ func (this *NodeWatcher) nodeWorker() {
 			case NodeFailed:
 				rtnd, ok := nodeToRTND[node.Hostname]
 				if !ok {
-					glog.Fatalf("Node %v does not exist", node.Hostname)
+					glog.Fatalf("Node %s does not exist", node.Hostname)
 				}
 				resID := rtnd.GetResourceDesc().GetUuid()
 				firmament.NodeFailed(this.fc, &firmament.ResourceUID{ResourceUid: resID})
@@ -196,7 +199,7 @@ func (this *NodeWatcher) nodeWorker() {
 			case NodeUpdated:
 				// TODO(ionel): Handle update case.
 			default:
-				glog.Fatalf("Unexpected node %v phase %v", node.Hostname, node.Phase)
+				glog.Fatalf("Unexpected node %s phase %s", node.Hostname, node.Phase)
 			}
 			defer this.nodeWorkQueue.Done(key)
 		}()

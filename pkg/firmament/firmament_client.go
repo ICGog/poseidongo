@@ -42,9 +42,9 @@ func TaskCompleted(client FirmamentSchedulerClient, tuid *TaskUID) {
 	}
 	switch tCompletedResp.Type {
 	case TaskReplyType_TASK_NOT_FOUND:
-		glog.Fatalf("Task %v not found", tuid.TaskUid)
+		glog.Fatalf("Task %d not found", tuid.TaskUid)
 	case TaskReplyType_TASK_JOB_NOT_FOUND:
-		glog.Fatalf("Task's %v job not found", tuid.TaskUid)
+		glog.Fatalf("Task's %d job not found", tuid.TaskUid)
 	case TaskReplyType_TASK_COMPLETED_OK:
 	default:
 		panic(fmt.Sprintf("Unexpected TaskCompleted response %v for task %v", tCompletedResp, tuid.TaskUid))
@@ -58,9 +58,9 @@ func TaskFailed(client FirmamentSchedulerClient, tuid *TaskUID) {
 	}
 	switch tFailedResp.Type {
 	case TaskReplyType_TASK_NOT_FOUND:
-		glog.Fatalf("Task %v not found", tuid.TaskUid)
+		glog.Fatalf("Task %d not found", tuid.TaskUid)
 	case TaskReplyType_TASK_JOB_NOT_FOUND:
-		glog.Fatalf("Task's %v job not found", tuid.TaskUid)
+		glog.Fatalf("Task's %d job not found", tuid.TaskUid)
 	case TaskReplyType_TASK_FAILED_OK:
 	default:
 		panic(fmt.Sprintf("Unexpected TaskFailed response %v for task %v", tFailedResp, tuid.TaskUid))
@@ -74,9 +74,9 @@ func TaskRemoved(client FirmamentSchedulerClient, tuid *TaskUID) {
 	}
 	switch tRemovedResp.Type {
 	case TaskReplyType_TASK_NOT_FOUND:
-		glog.Fatalf("Task %v not found", tuid.TaskUid)
+		glog.Fatalf("Task %d not found", tuid.TaskUid)
 	case TaskReplyType_TASK_JOB_NOT_FOUND:
-		glog.Fatalf("Task's %v job not found", tuid.TaskUid)
+		glog.Fatalf("Task's %d job not found", tuid.TaskUid)
 	case TaskReplyType_TASK_REMOVED_OK:
 	default:
 		panic(fmt.Sprintf("Unexpected TaskRemoved response %v for task %v", tRemovedResp, tuid.TaskUid))
@@ -90,9 +90,9 @@ func TaskSubmitted(client FirmamentSchedulerClient, td *TaskDescription) {
 	}
 	switch tSubmittedResp.Type {
 	case TaskReplyType_TASK_ALREADY_SUBMITTED:
-		glog.Fatalf("Task (%v,%v) already submitted", td.JobDescriptor.Uuid, td.TaskDescriptor.Uid)
+		glog.Fatalf("Task (%s,%d) already submitted", td.JobDescriptor.Uuid, td.TaskDescriptor.Uid)
 	case TaskReplyType_TASK_STATE_NOT_CREATED:
-		glog.Fatalf("Task (%v,%v) not in created state", td.JobDescriptor.Uuid, td.TaskDescriptor.Uid)
+		glog.Fatalf("Task (%s,%d) not in created state", td.JobDescriptor.Uuid, td.TaskDescriptor.Uid)
 	case TaskReplyType_TASK_SUBMITTED_OK:
 	default:
 		panic(fmt.Sprintf("Unexpected TaskSubmitted response %v for task (%v,%v)", tSubmittedResp, td.JobDescriptor.Uuid, td.TaskDescriptor.Uid))
@@ -106,7 +106,7 @@ func NodeAdded(client FirmamentSchedulerClient, rtnd *ResourceTopologyNodeDescri
 	}
 	switch nAddedResp.Type {
 	case NodeReplyType_NODE_ALREADY_EXISTS:
-		glog.Fatalf("Tried to add existing node %v", rtnd.ResourceDesc.Uuid)
+		glog.Fatalf("Tried to add existing node %s", rtnd.ResourceDesc.Uuid)
 	case NodeReplyType_NODE_ADDED_OK:
 	default:
 		panic(fmt.Sprintf("Unexpected NodeAdded response %v for node %v", nAddedResp, rtnd.ResourceDesc.Uuid))
@@ -120,7 +120,7 @@ func NodeFailed(client FirmamentSchedulerClient, ruid *ResourceUID) {
 	}
 	switch nFailedResp.Type {
 	case NodeReplyType_NODE_NOT_FOUND:
-		glog.Fatalf("Tried to fail non-existing node %v", ruid.ResourceUid)
+		glog.Fatalf("Tried to fail non-existing node %s", ruid.ResourceUid)
 	case NodeReplyType_NODE_FAILED_OK:
 	default:
 		panic(fmt.Sprintf("Unexpected NodeFailed response %v for node %v", nFailedResp, ruid.ResourceUid))
@@ -134,7 +134,7 @@ func NodeRemoved(client FirmamentSchedulerClient, ruid *ResourceUID) {
 	}
 	switch nRemovedResp.Type {
 	case NodeReplyType_NODE_NOT_FOUND:
-		glog.Fatalf("Tried to remove non-existing node %v", ruid.ResourceUid)
+		glog.Fatalf("Tried to remove non-existing node %s", ruid.ResourceUid)
 	case NodeReplyType_NODE_REMOVED_OK:
 	default:
 		panic(fmt.Sprintf("Unexpected NodeRemoved response %v for node %v", nRemovedResp, ruid.ResourceUid))
@@ -155,14 +155,14 @@ func AddNodeStats(client FirmamentSchedulerClient, rs *ResourceStats) {
 	}
 }
 
-func New(address string) (FirmamentSchedulerClient, error) {
+func New(address string) (FirmamentSchedulerClient, *grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithInsecure())
 	conn, err := grpc.Dial(address, opts...)
 	if err != nil {
-		return nil, err
+		glog.Errorf("Did not connect to Firmament scheduler: %v", err)
+		return nil, nil, err
 	}
-	defer conn.Close()
 	fc := NewFirmamentSchedulerClient(conn)
-	return fc, nil
+	return fc, conn, nil
 }

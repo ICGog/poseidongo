@@ -20,6 +20,7 @@ package main
 
 import (
 	"flag"
+	"time"
 
 	"github.com/ICGog/poseidongo/pkg/firmament"
 	"github.com/ICGog/poseidongo/pkg/k8sclient"
@@ -41,16 +42,17 @@ func init() {
 func schedule(fc firmament.FirmamentSchedulerClient) {
 	for {
 		deltas := firmament.Schedule(fc)
+		glog.Infof("Scheduler returned %d deltas", len(deltas.GetDeltas()))
 		for _, delta := range deltas.GetDeltas() {
 			switch delta.GetType() {
 			case firmament.SchedulingDelta_PLACE:
 				podName, ok := k8sclient.TaskIDToPod[delta.GetTaskId()]
 				if !ok {
-					glog.Fatalf("Placed task %v without pod pairing", delta.GetTaskId())
+					glog.Fatalf("Placed task %d without pod pairing", delta.GetTaskId())
 				}
 				nodeName, ok := k8sclient.ResIDToNode[delta.GetResourceId()]
 				if !ok {
-					glog.Fatalf("Placed task %v on resource %v without node pairing", delta.GetTaskId(), delta.GetResourceId())
+					glog.Fatalf("Placed task %d on resource %s without node pairing", delta.GetTaskId(), delta.GetResourceId())
 				}
 				// TODO(ionel): Get namespace.
 				k8sclient.BindPodToNode(podName, "", nodeName)
@@ -63,15 +65,18 @@ func schedule(fc firmament.FirmamentSchedulerClient) {
 				glog.Fatalf("Unexpected SchedulingDelta type %v", delta.GetType())
 			}
 		}
+		// TODO(ionel): Temporary sleep statement because we currently call the scheduler even if there's no work do to.
+		time.Sleep(10 * time.Second)
 	}
 }
 
 func main() {
 	glog.Info("Starting Poseidon...")
-	k8sclient.New(kubeConfig, firmamentAddress)
-	fc, err := firmament.New(firmamentAddress)
+	fc, conn, err := firmament.New(firmamentAddress)
+	defer conn.Close()
 	if err != nil {
 		panic(err)
 	}
 	go schedule(fc)
+	k8sclient.New(kubeConfig, firmamentAddress)
 }
