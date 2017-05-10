@@ -120,12 +120,13 @@ func (this *PodWatcher) enqueuePodAddition(obj interface{}) {
 }
 
 func (this *PodWatcher) enqueuePodDeletion(obj interface{}) {
+	// TODO(ionel): This method is called when the pod is scheduled!
 	pod := obj.(*v1.Pod)
 	deletedPod := &Pod{
 		Name:  pod.Namespace + "/" + pod.Name,
 		State: PodDeleted,
 	}
-	this.podWorkQueue.Add(deletedPod)
+	//	this.podWorkQueue.Add(deletedPod)
 	glog.Info("enqueuePodDeletion: Added pod ", deletedPod.Name)
 }
 
