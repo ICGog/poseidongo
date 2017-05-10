@@ -20,17 +20,31 @@ package k8sclient
 
 import (
 	"github.com/golang/glog"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func BindPodToNode(podName string, nodeName string) {
-	// TODO(ionel): Implement!
+var clientSet kubernetes.Interface
+
+func BindPodToNode(podName string, namespace string, nodeName string) {
+	// TODO(ionel): Reuse namspace clients!
+	clientSet.CoreV1().Pods(namespace).Bind(&v1.Binding{
+		meta_v1.TypeMeta{},
+		meta_v1.ObjectMeta{
+			Name: podName,
+		},
+		v1.ObjectReference{
+			Namespace: namespace,
+			Name:      nodeName,
+		}})
 }
 
-func DeletePod(podName string) {
-	// TODO(ionel): Implement!
+func DeletePod(podName string, namespace string) {
+	// TODO(ionel): Reuse namspace clients!
+	clientSet.CoreV1().Pods(namespace).Delete(podName, &meta_v1.DeleteOptions{})
 }
 
 func GetClientConfig(kubeconfig string) (*rest.Config, error) {
@@ -45,14 +59,14 @@ func New(kubeConfig string, firmamentAddress string) {
 	if err != nil {
 		glog.Fatalf("Failed to load client config: %v", err)
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		glog.Fatalf("Failed to create connection: %v", err)
 	}
 	glog.Info("k8s newclient called")
 	stopCh := make(chan struct{})
-	go NewPodWatcher(clientset, firmamentAddress).Run(stopCh, 10)
-	go NewNodeWatcher(clientset, firmamentAddress).Run(stopCh, 10)
+	go NewPodWatcher(clientSet, firmamentAddress).Run(stopCh, 10)
+	go NewNodeWatcher(clientSet, firmamentAddress).Run(stopCh, 10)
 
 	// We block here.
 	<-stopCh

@@ -39,26 +39,29 @@ func init() {
 }
 
 func schedule(fc firmament.FirmamentSchedulerClient) {
-	deltas := firmament.Schedule(fc)
-	for _, delta := range deltas.GetDeltas() {
-		switch delta.GetType() {
-		case firmament.SchedulingDelta_PLACE:
-			// ok, podName := taskIDToPod[delta.GetTaskId()]
-			// if !ok {
-			// 	glog.Fatalf("Placed task %v without pod pairing", delta.GetTaskId())
-			// }
-			// ok, nodeName := resIDToNode[delta.GetResourceId()]
-			// if !ok {
-			// 	glog.Fatalf("Placed task %v on resource %v without node pairing", delta.GetTaskId(), delta.GetResourceId())
-			// }
-			// k8sclient.BindPodToNode(podName, nodeName)
-		case firmament.SchedulingDelta_PREEMPT:
-			glog.Fatalf("Pod preemption not currently supported.")
-		case firmament.SchedulingDelta_MIGRATE:
-			glog.Fatalf("Pod migration not currently supported.")
-		case firmament.SchedulingDelta_NOOP:
-		default:
-			glog.Fatalf("Unexpected SchedulingDelta type %v", delta.GetType())
+	for {
+		deltas := firmament.Schedule(fc)
+		for _, delta := range deltas.GetDeltas() {
+			switch delta.GetType() {
+			case firmament.SchedulingDelta_PLACE:
+				podName, ok := k8sclient.TaskIDToPod[delta.GetTaskId()]
+				if !ok {
+					glog.Fatalf("Placed task %v without pod pairing", delta.GetTaskId())
+				}
+				nodeName, ok := k8sclient.ResIDToNode[delta.GetResourceId()]
+				if !ok {
+					glog.Fatalf("Placed task %v on resource %v without node pairing", delta.GetTaskId(), delta.GetResourceId())
+				}
+				// TODO(ionel): Get namespace.
+				k8sclient.BindPodToNode(podName, "", nodeName)
+			case firmament.SchedulingDelta_PREEMPT:
+				glog.Fatalf("Pod preemption not currently supported.")
+			case firmament.SchedulingDelta_MIGRATE:
+				glog.Fatalf("Pod migration not currently supported.")
+			case firmament.SchedulingDelta_NOOP:
+			default:
+				glog.Fatalf("Unexpected SchedulingDelta type %v", delta.GetType())
+			}
 		}
 	}
 }
@@ -66,4 +69,9 @@ func schedule(fc firmament.FirmamentSchedulerClient) {
 func main() {
 	glog.Info("Starting Poseidon...")
 	k8sclient.New(kubeConfig, firmamentAddress)
+	fc, err := firmament.New(firmamentAddress)
+	if err != nil {
+		panic(err)
+	}
+	go schedule(fc)
 }

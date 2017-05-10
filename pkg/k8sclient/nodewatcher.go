@@ -172,7 +172,7 @@ func (this *NodeWatcher) nodeWorker() {
 					glog.Fatalf("Node %v already exists", node.Hostname)
 				}
 				nodeToRTND[node.Hostname] = rtnd
-				resIDToNode[rtnd.GetResourceDesc().GetUuid()] = node.Hostname
+				ResIDToNode[rtnd.GetResourceDesc().GetUuid()] = node.Hostname
 				firmament.NodeAdded(this.fc, rtnd)
 			case NodeDeleted:
 				rtnd, ok := nodeToRTND[node.Hostname]
@@ -182,7 +182,7 @@ func (this *NodeWatcher) nodeWorker() {
 				resID := rtnd.GetResourceDesc().GetUuid()
 				firmament.NodeRemoved(this.fc, &firmament.ResourceUID{ResourceUid: resID})
 				delete(nodeToRTND, node.Hostname)
-				delete(resIDToNode, resID)
+				delete(ResIDToNode, resID)
 			case NodeFailed:
 				rtnd, ok := nodeToRTND[node.Hostname]
 				if !ok {
@@ -192,7 +192,7 @@ func (this *NodeWatcher) nodeWorker() {
 				firmament.NodeFailed(this.fc, &firmament.ResourceUID{ResourceUid: resID})
 				this.cleanResourceStateForNode(rtnd)
 				delete(nodeToRTND, node.Hostname)
-				delete(resIDToNode, resID)
+				delete(ResIDToNode, resID)
 			case NodeUpdated:
 				// TODO(ionel): Handle update case.
 			default:
@@ -204,7 +204,7 @@ func (this *NodeWatcher) nodeWorker() {
 }
 
 func (this *NodeWatcher) cleanResourceStateForNode(rtnd *firmament.ResourceTopologyNodeDescriptor) {
-	delete(resIDToNode, rtnd.GetResourceDesc().GetUuid())
+	delete(ResIDToNode, rtnd.GetResourceDesc().GetUuid())
 	for _, childRTND := range rtnd.GetChildren() {
 		this.cleanResourceStateForNode(childRTND)
 	}
@@ -224,7 +224,7 @@ func (this *NodeWatcher) createResourceTopologyForNode(node *Node) *firmament.Re
 			},
 		},
 	}
-	resIDToNode[resUuid] = node.Hostname
+	ResIDToNode[resUuid] = node.Hostname
 	// TODO(ionel) Add annotations.
 	// Add labels.
 	for label, value := range node.Labels {
@@ -250,7 +250,7 @@ func (this *NodeWatcher) createResourceTopologyForNode(node *Node) *firmament.Re
 			ParentId: resUuid,
 		}
 		rtnd.Children = append(rtnd.Children, puRtnd)
-		resIDToNode[puUuid] = node.Hostname
+		ResIDToNode[puUuid] = node.Hostname
 	}
 	return rtnd
 }

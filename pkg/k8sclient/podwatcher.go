@@ -173,7 +173,7 @@ func (this *PodWatcher) podWorker() {
 				td := this.addTaskToJob(pod, jd)
 				jobNumIncompleteTasks[jobId]++
 				podToTD[pod.Name] = td
-				taskIDToPod[td.GetUid()] = pod.Name
+				TaskIDToPod[td.GetUid()] = pod.Name
 				taskDescription := &firmament.TaskDescription{
 					TaskDescriptor: td,
 					JobDescriptor:  jd,
@@ -186,7 +186,7 @@ func (this *PodWatcher) podWorker() {
 				}
 				firmament.TaskCompleted(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
 				delete(podToTD, pod.Name)
-				delete(taskIDToPod, td.GetUid())
+				delete(TaskIDToPod, td.GetUid())
 				jobId := this.generateJobID(pod.Name)
 				jobNumIncompleteTasks[jobId]--
 				if jobNumIncompleteTasks[jobId] == 0 {
@@ -206,7 +206,7 @@ func (this *PodWatcher) podWorker() {
 				}
 				firmament.TaskRemoved(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
 				delete(podToTD, pod.Name)
-				delete(taskIDToPod, td.GetUid())
+				delete(TaskIDToPod, td.GetUid())
 				jobId := this.generateJobID(pod.Name)
 				jobNumIncompleteTasks[jobId]--
 				if jobNumIncompleteTasks[jobId] == 0 {
