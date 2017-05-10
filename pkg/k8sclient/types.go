@@ -28,10 +28,24 @@ import (
 const bytesToKb = 1024
 
 var podToTD map[string]*firmament.TaskDescriptor
-var jobMap map[string]*firmament.JobDescriptor
+var taskIDToPod map[uint64]string
+var jobIDToJD map[string]*firmament.JobDescriptor
+var jobNumIncompleteTasks map[string]int
+var nodeToRTND map[string]*firmament.ResourceTopologyNodeDescriptor
+var resIDToNode map[string]string
+
+type NodePhase string
+
+const (
+	NodeAdded   NodePhase = "Added"
+	NodeDeleted NodePhase = "Deleted"
+	NodeFailed  NodePhase = "Failed"
+	NodeUpdated NodePhase = "Updated"
+)
 
 type Node struct {
 	Hostname         string
+	Phase            NodePhase
 	IsReady          bool
 	IsOutOfDisk      bool
 	CpuCapacity      int64
@@ -50,6 +64,8 @@ const (
 	PodSucceeded PodPhase = "Succeeded"
 	PodFailed    PodPhase = "Failed"
 	PodUnknown   PodPhase = "Unknown"
+	// Internal phase used for removed pods.
+	PodDeleted PodPhase = "Deleted"
 )
 
 type Pod struct {
@@ -67,6 +83,7 @@ type NodeWatcher struct {
 	clientset     kubernetes.Interface
 	nodeWorkQueue workqueue.DelayingInterface
 	controller    cache.Controller
+	fc            firmament.FirmamentSchedulerClient
 }
 
 type PodWatcher struct {
@@ -74,4 +91,5 @@ type PodWatcher struct {
 	clientset    kubernetes.Interface
 	podWorkQueue workqueue.DelayingInterface
 	controller   cache.Controller
+	fc           firmament.FirmamentSchedulerClient
 }

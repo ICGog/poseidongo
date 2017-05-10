@@ -36,9 +36,16 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-func NewNodeWatcher(client kubernetes.Interface) *NodeWatcher {
+func NewNodeWatcher(client kubernetes.Interface, firmamentAddress string) *NodeWatcher {
 	glog.Info("Starting NodeWatcher...")
-	nodewatcher := &NodeWatcher{clientset: client}
+	fc, err := firmament.New(firmamentAddress)
+	if err != nil {
+		panic(err)
+	}
+	nodewatcher := &NodeWatcher{
+		clientset: client,
+		fc:        fc,
+	}
 	_, controller := cache.NewInformer(
 		&cache.ListWatch{
 			ListFunc: func(alo metav1.ListOptions) (runtime.Object, error) {
@@ -52,16 +59,13 @@ func NewNodeWatcher(client kubernetes.Interface) *NodeWatcher {
 		0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				glog.Info("Add Event on Nodewatcher")
-				nodewatcher.enqueueNodes(obj)
+				nodewatcher.enqueueNodeAddition(obj)
 			},
 			UpdateFunc: func(old, new interface{}) {
-				glog.Info("Update Event on Nodewatcher")
-				nodewatcher.enqueueNodes(new)
+				nodewatcher.enqueueNodeUpdate(old, new)
 			},
 			DeleteFunc: func(obj interface{}) {
-				glog.Info("Delete Event on Nodewatcher")
-				nodewatcher.enqueueNodes(obj)
+				nodewatcher.enqueueNodeDeletion(obj)
 			},
 		},
 	)
@@ -70,11 +74,10 @@ func NewNodeWatcher(client kubernetes.Interface) *NodeWatcher {
 	return nodewatcher
 }
 
-func (this *NodeWatcher) enqueueNodes(obj interface{}) {
-	glog.Info("enqueueNodes function called")
+func (this *NodeWatcher) enqueueNodeAddition(obj interface{}) {
 	node := obj.(*v1.Node)
 	if node.Spec.Unschedulable {
-		glog.Info("enqueueNodes: Received an Unschedulable node", node.Name)
+		glog.Info("enqueueNodeAddition: received an Unschedulable node", node.Name)
 		return
 	}
 	isReady := false
@@ -95,8 +98,9 @@ func (this *NodeWatcher) enqueueNodes(obj interface{}) {
 	memCap, _ := memCapQuantity.AsInt64()
 	memAllocQuantity := node.Status.Allocatable["memory"]
 	memAlloc, _ := memAllocQuantity.AsInt64()
-	newNode := &Node{
+	addedNode := &Node{
 		Hostname:         node.Name,
+		Phase:            NodeAdded,
 		IsReady:          isReady,
 		IsOutOfDisk:      isOutOfDisk,
 		CpuCapacity:      cpuCap,
@@ -106,8 +110,26 @@ func (this *NodeWatcher) enqueueNodes(obj interface{}) {
 		Labels:           node.Labels,
 		Annotations:      node.Annotations,
 	}
-	this.nodeWorkQueue.Add(newNode)
-	glog.Info("enqueueNodes: Added a new node", node.Name)
+	this.nodeWorkQueue.Add(addedNode)
+	glog.Info("enqueueNodeAdition: Added node ", addedNode.Hostname)
+}
+
+func (this *NodeWatcher) enqueueNodeUpdate(oldObj, newObj interface{}) {
+	// TODO(ionel): Implement!
+}
+
+func (this *NodeWatcher) enqueueNodeDeletion(obj interface{}) {
+	node := obj.(*v1.Node)
+	if node.Spec.Unschedulable {
+		// Poseidon doesn't case about Unschedulable nodes.
+		return
+	}
+	deletedNode := &Node{
+		Hostname: node.Name,
+		Phase:    NodeDeleted,
+	}
+	this.nodeWorkQueue.Add(deletedNode)
+	glog.Info("enqueueNodeDeletion: Added node ", deletedNode.Hostname)
 }
 
 func (this *NodeWatcher) Run(stopCh <-chan struct{}, nWorkers int) {
@@ -142,14 +164,49 @@ func (this *NodeWatcher) nodeWorker() {
 				return
 			}
 			node := key.(*Node)
-			rtnd := this.createResourceTopologyForNode(node)
-			glog.Info("ResourceTopologyNodeDescriptor ", rtnd)
-			//firmament.NodeAdded(fc, rtnd)
-			//firmament.NodeFailed(fc)
-			//firmament.NodeRemoved(fc)
-			//firmament.AddNodeStats(fc)
+			switch node.Phase {
+			case NodeAdded:
+				rtnd := this.createResourceTopologyForNode(node)
+				_, ok := nodeToRTND[node.Hostname]
+				if ok {
+					glog.Fatalf("Node %v already exists", node.Hostname)
+				}
+				nodeToRTND[node.Hostname] = rtnd
+				resIDToNode[rtnd.GetResourceDesc().GetUuid()] = node.Hostname
+				firmament.NodeAdded(this.fc, rtnd)
+			case NodeDeleted:
+				rtnd, ok := nodeToRTND[node.Hostname]
+				if !ok {
+					glog.Fatalf("Node %v does not exist", node.Hostname)
+				}
+				resID := rtnd.GetResourceDesc().GetUuid()
+				firmament.NodeRemoved(this.fc, &firmament.ResourceUID{ResourceUid: resID})
+				delete(nodeToRTND, node.Hostname)
+				delete(resIDToNode, resID)
+			case NodeFailed:
+				rtnd, ok := nodeToRTND[node.Hostname]
+				if !ok {
+					glog.Fatalf("Node %v does not exist", node.Hostname)
+				}
+				resID := rtnd.GetResourceDesc().GetUuid()
+				firmament.NodeFailed(this.fc, &firmament.ResourceUID{ResourceUid: resID})
+				this.cleanResourceStateForNode(rtnd)
+				delete(nodeToRTND, node.Hostname)
+				delete(resIDToNode, resID)
+			case NodeUpdated:
+				// TODO(ionel): Handle update case.
+			default:
+				glog.Fatalf("Unexpected node %v phase %v", node.Hostname, node.Phase)
+			}
 			defer this.nodeWorkQueue.Done(key)
 		}()
+	}
+}
+
+func (this *NodeWatcher) cleanResourceStateForNode(rtnd *firmament.ResourceTopologyNodeDescriptor) {
+	delete(resIDToNode, rtnd.GetResourceDesc().GetUuid())
+	for _, childRTND := range rtnd.GetChildren() {
+		this.cleanResourceStateForNode(childRTND)
 	}
 }
 
@@ -167,6 +224,7 @@ func (this *NodeWatcher) createResourceTopologyForNode(node *Node) *firmament.Re
 			},
 		},
 	}
+	resIDToNode[resUuid] = node.Hostname
 	// TODO(ionel) Add annotations.
 	// Add labels.
 	for label, value := range node.Labels {
@@ -180,9 +238,10 @@ func (this *NodeWatcher) createResourceTopologyForNode(node *Node) *firmament.Re
 	// than manually connecting PU RDs to the machine RD.
 	for num_pu := int64(0); num_pu < node.CpuCapacity; num_pu++ {
 		friendlyName := node.Hostname + "_pu" + strconv.FormatInt(num_pu, 10)
+		puUuid := this.generateResourceID(friendlyName)
 		puRtnd := &firmament.ResourceTopologyNodeDescriptor{
 			ResourceDesc: &firmament.ResourceDescriptor{
-				Uuid:         this.generateResourceID(friendlyName),
+				Uuid:         puUuid,
 				Type:         firmament.ResourceDescriptor_RESOURCE_PU,
 				State:        firmament.ResourceDescriptor_RESOURCE_IDLE,
 				FriendlyName: friendlyName,
@@ -191,6 +250,7 @@ func (this *NodeWatcher) createResourceTopologyForNode(node *Node) *firmament.Re
 			ParentId: resUuid,
 		}
 		rtnd.Children = append(rtnd.Children, puRtnd)
+		resIDToNode[puUuid] = node.Hostname
 	}
 	return rtnd
 }

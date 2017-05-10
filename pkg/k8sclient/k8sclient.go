@@ -25,11 +25,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func BindPodToNode() {
+func BindPodToNode(podName string, nodeName string) {
 	// TODO(ionel): Implement!
 }
 
-func DeletePod() {
+func DeletePod(podName string) {
 	// TODO(ionel): Implement!
 }
 
@@ -40,7 +40,7 @@ func GetClientConfig(kubeconfig string) (*rest.Config, error) {
 	return rest.InClusterConfig()
 }
 
-func New(kubeConfig string) {
+func New(kubeConfig string, firmamentAddress string) {
 	config, err := GetClientConfig(kubeConfig)
 	if err != nil {
 		glog.Fatalf("Failed to load client config: %v", err)
@@ -51,8 +51,8 @@ func New(kubeConfig string) {
 	}
 	glog.Info("k8s newclient called")
 	stopCh := make(chan struct{})
-	go NewPodWatcher(clientset).Run(stopCh, 10)
-	go NewNodeWatcher(clientset).Run(stopCh, 10)
+	go NewPodWatcher(clientset, firmamentAddress).Run(stopCh, 10)
+	go NewNodeWatcher(clientset, firmamentAddress).Run(stopCh, 10)
 
 	// We block here.
 	<-stopCh
