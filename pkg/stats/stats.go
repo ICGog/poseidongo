@@ -19,32 +19,111 @@
 package stats
 
 import (
+	"github.com/ICGog/poseidongo/pkg/firmament"
+	"github.com/golang/glog"
 	"google.golang.org/grpc"
+	"io"
+	"net"
 )
 
 type poseidonStatsServer struct {
+	firmamentClient firmament.FirmamentSchedulerClient
+}
+
+func convertPodStatToTaskStat(podStats *PodStats) *firmament.TaskStats {
+	return &firmament.TaskStats{
+		CpuLimit:            podStats.GetCpuLimit(),
+		CpuRequest:          podStats.GetCpuRequest(),
+		CpuUsage:            podStats.GetCpuUsage(),
+		MemLimit:            podStats.GetMemLimit(),
+		MemRequest:          podStats.GetMemRequest(),
+		MemUsage:            podStats.GetMemUsage(),
+		MemWorkingSet:       podStats.GetMemWorkingSet(),
+		MemPageFaults:       podStats.GetMemPageFaults(),
+		MemPageFaultsRate:   podStats.GetMemPageFaultsRate(),
+		MajorPageFaults:     podStats.GetMajorPageFaults(),
+		MajorPageFaultsRate: podStats.GetMajorPageFaultsRate(),
+		NetRx:               podStats.GetNetRx(),
+		NetRxErrors:         podStats.GetNetRxErrors(),
+		NetRxErrorsRate:     podStats.GetNetRxErrorsRate(),
+		NetRxRate:           podStats.GetNetRxRate(),
+		NetTx:               podStats.GetNetTx(),
+		NetTxErrors:         podStats.GetNetTxErrors(),
+		NetTxErrorsRate:     podStats.GetNetTxErrorsRate(),
+		NetTxRate:           podStats.GetNetTxRate(),
+	}
+}
+
+func convertNodeStatToResourceStat(nodeStats *NodeStats) *firmament.ResourceStats {
+	return &firmament.ResourceStats{
+		CpuAllocatable: nodeStats.GetCpuAllocatable(),
+		CpuCapacity:    nodeStats.GetCpuCapacity(),
+		CpuReservation: nodeStats.GetCpuReservation(),
+		CpuUtilization: nodeStats.GetCpuUtilization(),
+		MemAllocatable: nodeStats.GetMemAllocatable(),
+		MemCapacity:    nodeStats.GetMemCapacity(),
+		MemReservation: nodeStats.GetMemReservation(),
+		MemUtilization: nodeStats.GetMemUtilization(),
+	}
+
 }
 
 func (s *poseidonStatsServer) ReceiveNodeStats(stream PoseidonStats_ReceiveNodeStatsServer) error {
 	for {
-		in, err := stream.Recv()
+		nodeStat, err := stream.Recv()
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
+
+		resourceStat := convertNodeStatToResourceStat(nodeStat)
+
+		//TODO:(shiv)check the NodetoResource Map and get the resourceid and set the ResourceUid below
+
+		//resourceStat.ResourceUid =
+
+		firmament.AddNodeStats(s.firmamentClient, resourceStat)
+
 	}
 }
 
 func (s *poseidonStatsServer) ReceivePodStats(stream PoseidonStats_ReceivePodStatsServer) error {
 	for {
-		in, err := stream.Recv()
+		podStat, err := stream.Recv()
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
+		taskStat := convertPodStatToTaskStat(podStat)
+		//TODO:(shiv) Check the PodtoTask mao and get the taskUid and set the TaskUis below
+		//taskStat.TaskUid
+
+		firmament.AddTaskStats(s.firmamentClient, taskStat)
+
 	}
+}
+
+func NewposeidonStatsServer(firmamentAddress string) *poseidonStatsServer {
+	newfirmamentClient, _, err := firmament.New(firmamentAddress)
+	if err != nil {
+		glog.Fatalln("Unable to initialze firmamentClient in stats", err)
+
+	}
+	return &poseidonStatsServer{firmamentClient: newfirmamentClient}
+}
+
+// StartgRPCStatsServer will run in a separate goroutine
+//
+func StartgRPCStatsServer(ip, port, firmamentAddress string) {
+	lis, err := net.Listen("tcp", ip+":"+port)
+	if err != nil {
+		glog.Fatalf("failed to listen: %v", err)
+	}
+	grpcServer := grpc.NewServer()
+	RegisterPoseidonStatsServer(grpcServer, NewposeidonStatsServer(firmamentAddress))
+	grpcServer.Serve(lis)
 }
