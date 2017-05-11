@@ -20,7 +20,6 @@ package main
 
 import (
 	"flag"
-	"strings"
 	"time"
 
 	"github.com/ICGog/poseidongo/pkg/firmament"
@@ -47,7 +46,7 @@ func schedule(fc firmament.FirmamentSchedulerClient) {
 		for _, delta := range deltas.GetDeltas() {
 			switch delta.GetType() {
 			case firmament.SchedulingDelta_PLACE:
-				podName, ok := k8sclient.TaskIDToPod[delta.GetTaskId()]
+				podIdentifier, ok := k8sclient.TaskIDToPod[delta.GetTaskId()]
 				if !ok {
 					glog.Fatalf("Placed task %d without pod pairing", delta.GetTaskId())
 				}
@@ -55,9 +54,7 @@ func schedule(fc firmament.FirmamentSchedulerClient) {
 				if !ok {
 					glog.Fatalf("Placed task %d on resource %s without node pairing", delta.GetTaskId(), delta.GetResourceId())
 				}
-				// TODO(ionel): Use a struct rather than a merged name namespace string to uniquely identify pods.
-				namespaceName := strings.Split(podName, "/")
-				k8sclient.BindPodToNode(namespaceName[1], namespaceName[0], nodeName)
+				k8sclient.BindPodToNode(podIdentifier.Name, podIdentifier.Namespace, nodeName)
 			case firmament.SchedulingDelta_PREEMPT:
 				glog.Fatalf("Pod preemption not currently supported.")
 			case firmament.SchedulingDelta_MIGRATE:
