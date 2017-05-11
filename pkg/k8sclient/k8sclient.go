@@ -68,8 +68,8 @@ func New(kubeConfig string, firmamentAddress string) {
 	}
 	glog.Info("k8s newclient called")
 	stopCh := make(chan struct{})
-	go NewPodWatcher(clientSet, firmamentAddress).Run(stopCh, 10)
-	go NewNodeWatcher(clientSet, firmamentAddress).Run(stopCh, 10)
+	go NewPodWatcher(clientSet, firmamentAddress).Run(stopCh, 1)
+	go NewNodeWatcher(clientSet, firmamentAddress).Run(stopCh, 1)
 
 	// We block here.
 	<-stopCh
