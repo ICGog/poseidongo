@@ -29,12 +29,14 @@ import (
 )
 
 var (
+	schedulerName      string
 	firmamentAddress   string
 	kubeConfig         string
 	statsServerAddress string
 )
 
 func init() {
+	flag.StringVar(&schedulerName, "schedulerName", "poseidon", "The scheduler name with which pods are labelles")
 	flag.StringVar(&firmamentAddress, "firmamentAddress", "127.0.0.1:9090", "Firmament scheduler address")
 	flag.StringVar(&kubeConfig, "kubeConfig", "kubeconfig.cfg", "Path to the kubeconfig file")
 	flag.StringVar(&statsServerAddress, "statsServerAddress", "127.0.0.1:9091", "Address on which the stats server listens")
@@ -80,5 +82,5 @@ func main() {
 	}
 	go schedule(fc)
 	go stats.StartgRPCStatsServer(statsServerAddress, firmamentAddress)
-	k8sclient.New(kubeConfig, firmamentAddress)
+	k8sclient.New(schedulerName, kubeConfig, firmamentAddress)
 }

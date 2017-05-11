@@ -57,7 +57,7 @@ func GetClientConfig(kubeconfig string) (*rest.Config, error) {
 	return rest.InClusterConfig()
 }
 
-func New(kubeConfig string, firmamentAddress string) {
+func New(schedulerName string, kubeConfig string, firmamentAddress string) {
 	config, err := GetClientConfig(kubeConfig)
 	if err != nil {
 		glog.Fatalf("Failed to load client config: %v", err)
@@ -68,7 +68,7 @@ func New(kubeConfig string, firmamentAddress string) {
 	}
 	glog.Info("k8s newclient called")
 	stopCh := make(chan struct{})
-	go NewPodWatcher(clientSet, firmamentAddress).Run(stopCh, 1)
+	go NewPodWatcher(schedulerName, clientSet, firmamentAddress).Run(stopCh, 1)
 	go NewNodeWatcher(clientSet, firmamentAddress).Run(stopCh, 1)
 
 	// We block here.

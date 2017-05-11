@@ -36,7 +36,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-func NewPodWatcher(client kubernetes.Interface, firmamentAddress string) *PodWatcher {
+func NewPodWatcher(schedulerName string, client kubernetes.Interface, firmamentAddress string) *PodWatcher {
 	glog.Info("Starting PodWatcher...")
 	PodToTD = make(map[PodIdentifier]*firmament.TaskDescriptor)
 	TaskIDToPod = make(map[uint64]PodIdentifier)
@@ -51,15 +51,19 @@ func NewPodWatcher(client kubernetes.Interface, firmamentAddress string) *PodWat
 		clientset: client,
 		fc:        fc,
 	}
-	podStatuSelector := fields.ParseSelectorOrDie("spec.nodeName==")
+	podPhaseSelector := fields.ParseSelectorOrDie("status.phase!=Running")
+	// TODO(ionel): schedulerName only available in Kubernetes 1.6.
+	// schedulerNameSelector := fields.ParseSelectorOrDie("spec.schedulerName==" + schedulerName)
+	// podSelector := fields.AndSelectors(schedulerNameSelector, podPhaseSelector)
+	podSelector := podPhaseSelector
 	_, controller := cache.NewInformer(
 		&cache.ListWatch{
 			ListFunc: func(alo metav1.ListOptions) (runtime.Object, error) {
-				alo.FieldSelector = podStatuSelector.String()
+				alo.FieldSelector = podSelector.String()
 				return client.CoreV1().Pods("").List(alo)
 			},
 			WatchFunc: func(alo metav1.ListOptions) (watch.Interface, error) {
-				alo.FieldSelector = podStatuSelector.String()
+				alo.FieldSelector = podSelector.String()
 				return client.CoreV1().Pods("").Watch(alo)
 			},
 		},
@@ -137,6 +141,10 @@ func (this *PodWatcher) enqueuePodDeletion(obj interface{}) {
 
 func (this *PodWatcher) enqueuePodUpdate(oldObj, newObj interface{}) {
 	// TODO(ionel): Implement!
+	oldPod := oldObj.(*v1.Pod)
+	newPod := newObj.(*v1.Pod)
+	glog.Infof("oldPod %v", oldPod)
+	glog.Infof("newPod %v", newPod)
 }
 
 func (this *PodWatcher) Run(stopCh <-chan struct{}, nWorkers int) {
