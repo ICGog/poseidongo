@@ -38,7 +38,7 @@ import (
 
 func NewPodWatcher(client kubernetes.Interface, firmamentAddress string) *PodWatcher {
 	glog.Info("Starting PodWatcher...")
-	podToTD = make(map[string]*firmament.TaskDescriptor)
+	PodToTD = make(map[string]*firmament.TaskDescriptor)
 	TaskIDToPod = make(map[uint64]string)
 	jobIDToJD = make(map[string]*firmament.JobDescriptor)
 	jobNumIncompleteTasks = make(map[string]int)
@@ -178,7 +178,7 @@ func (this *PodWatcher) podWorker() {
 				}
 				td := this.addTaskToJob(pod, jd)
 				jobNumIncompleteTasks[jobId]++
-				podToTD[pod.Name] = td
+				PodToTD[pod.Name] = td
 				TaskIDToPod[td.GetUid()] = pod.Name
 				taskDescription := &firmament.TaskDescription{
 					TaskDescriptor: td,
@@ -186,12 +186,12 @@ func (this *PodWatcher) podWorker() {
 				}
 				firmament.TaskSubmitted(this.fc, taskDescription)
 			case PodSucceeded:
-				td, ok := podToTD[pod.Name]
+				td, ok := PodToTD[pod.Name]
 				if !ok {
 					glog.Fatalf("Pod %s does not exist", pod.Name)
 				}
 				firmament.TaskCompleted(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
-				delete(podToTD, pod.Name)
+				delete(PodToTD, pod.Name)
 				delete(TaskIDToPod, td.GetUid())
 				jobId := this.generateJobID(pod.Name)
 				jobNumIncompleteTasks[jobId]--
@@ -206,12 +206,12 @@ func (this *PodWatcher) podWorker() {
 					// position within the Spawned list.
 				}
 			case PodDeleted:
-				td, ok := podToTD[pod.Name]
+				td, ok := PodToTD[pod.Name]
 				if !ok {
 					glog.Fatalf("Pod %s does not exist", pod.Name)
 				}
 				firmament.TaskRemoved(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
-				delete(podToTD, pod.Name)
+				delete(PodToTD, pod.Name)
 				delete(TaskIDToPod, td.GetUid())
 				jobId := this.generateJobID(pod.Name)
 				jobNumIncompleteTasks[jobId]--
@@ -226,7 +226,7 @@ func (this *PodWatcher) podWorker() {
 					// position within the Spawned list.
 				}
 			case PodFailed:
-				td, ok := podToTD[pod.Name]
+				td, ok := PodToTD[pod.Name]
 				if !ok {
 					glog.Fatalf("Pod %s does not exist", pod.Name)
 				}
