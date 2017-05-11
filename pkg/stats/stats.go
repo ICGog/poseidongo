@@ -34,6 +34,7 @@ type poseidonStatsServer struct {
 
 func convertPodStatsToTaskStats(podStats *PodStats) *firmament.TaskStats {
 	return &firmament.TaskStats{
+		Hostname:            podStats.GetHostname(),
 		CpuLimit:            podStats.GetCpuLimit(),
 		CpuRequest:          podStats.GetCpuRequest(),
 		CpuUsage:            podStats.GetCpuUsage(),
