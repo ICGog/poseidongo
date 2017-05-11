@@ -24,18 +24,20 @@ import (
 
 	"github.com/ICGog/poseidongo/pkg/firmament"
 	"github.com/ICGog/poseidongo/pkg/k8sclient"
+	"github.com/ICGog/poseidongo/pkg/stats"
 	"github.com/golang/glog"
 )
 
 var (
-	firmamentAddress      string
-	kubeConfig            string
-	poseidonSchedulerName string
+	firmamentAddress   string
+	kubeConfig         string
+	statsServerAddress string
 )
 
 func init() {
 	flag.StringVar(&firmamentAddress, "firmamentAddress", "127.0.0.1:9090", "Firmament scheduler address")
 	flag.StringVar(&kubeConfig, "kubeConfig", "kubeconfig.cfg", "Path to the kubeconfig file")
+	flag.StringVar(&statsServerAddress, "statsServerAddress", "127.0.0.1:9091", "Address on which the stats server listens")
 	flag.Parse()
 }
 
@@ -77,5 +79,6 @@ func main() {
 		panic(err)
 	}
 	go schedule(fc)
+	go stats.StartgRPCStatsServer(statsServerAddress, firmamentAddress)
 	k8sclient.New(kubeConfig, firmamentAddress)
 }
