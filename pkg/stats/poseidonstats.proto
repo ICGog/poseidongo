@@ -37,7 +37,14 @@ message NodeStats {
   uint64 mem_utilization = 9;
 }
 
+enum NodeStatsResponseType {
+  NODE_STATS_OK = 0;
+  NODE_NOT_FOUND = 1;
+}
+
 message NodeStatsResponse {
+  NodeStatsResponseType type = 1;
+  string hostname = 2;
 }
 
 message PodStats {
@@ -64,5 +71,13 @@ message PodStats {
   double net_tx_rate = 21;
 }
 
+enum PodStatsResponseType {
+  POD_STATS_OK = 0;
+  POD_NOT_FOUND = 1;
+}
+
 message PodStatsResponse {
+  PodStatsResponseType type = 1;
+  string name = 2;
+  string namespace = 3;
 }
