@@ -27,8 +27,8 @@ import (
 
 const bytesToKb = 1024
 
-var PodToTD map[string]*firmament.TaskDescriptor
-var TaskIDToPod map[uint64]string
+var PodToTD map[PodIdentifier]*firmament.TaskDescriptor
+var TaskIDToPod map[uint64]PodIdentifier
 var jobIDToJD map[string]*firmament.JobDescriptor
 var jobNumIncompleteTasks map[string]int
 var NodeToRTND map[string]*firmament.ResourceTopologyNodeDescriptor
@@ -68,8 +68,17 @@ const (
 	PodDeleted PodPhase = "Deleted"
 )
 
+type PodIdentifier struct {
+	Name      string
+	Namespace string
+}
+
+func (this *PodIdentifier) UniqueName() string {
+	return this.Namespace + "/" + this.Name
+}
+
 type Pod struct {
-	Name         string
+	Identifier   PodIdentifier
 	State        PodPhase
 	CpuRequest   int64
 	MemRequestKb int64

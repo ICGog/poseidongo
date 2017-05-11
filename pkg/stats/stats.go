@@ -85,7 +85,7 @@ func (s *poseidonStatsServer) ReceiveNodeStats(stream PoseidonStats_ReceiveNodeS
 		if !ok {
 			// TODO(ionel): Handle case when node does not have an associated resource id.
 		}
-		resourceStats.ResourceUid = firmament.ResourceUID{
+		resourceStats.ResourceUid = &firmament.ResourceUID{
 			ResourceUid: rtnd.GetResourceDesc().GetUuid(),
 		}
 		firmament.AddNodeStats(s.firmamentClient, resourceStats)
@@ -101,19 +101,23 @@ func (s *poseidonStatsServer) ReceivePodStats(stream PoseidonStats_ReceivePodSta
 		if err != nil {
 			return err
 		}
-		taskStats := convertPodStatsToTaskStats(podStat)
-		td, ok := k8sclient.PodToTD[podStats.GetTaskUid().GetTaskUid()]
+		taskStats := convertPodStatsToTaskStats(podStats)
+		podIdentifier := k8sclient.PodIdentifier{
+			Name:      podStats.Name,
+			Namespace: podStats.Namespace,
+		}
+		td, ok := k8sclient.PodToTD[podIdentifier]
 		if !ok {
 			// TODO(ionel): Handle case when pod does not have an associated task id.
 		}
-		taskStats.TaskUid = firmament.TaskUID{
+		taskStats.TaskUid = &firmament.TaskUID{
 			TaskUid: td.GetUid(),
 		}
 		firmament.AddTaskStats(s.firmamentClient, taskStats)
 	}
 }
 
-func NewposeidonStatsServer(firmamentAddress string) *poseidonStatsServer {
+func newposeidonStatsServer(firmamentAddress string) *poseidonStatsServer {
 	newfirmamentClient, _, err := firmament.New(firmamentAddress)
 	if err != nil {
 		glog.Fatalln("Unable to initialze Firmament client", err)
@@ -122,12 +126,13 @@ func NewposeidonStatsServer(firmamentAddress string) *poseidonStatsServer {
 	return &poseidonStatsServer{firmamentClient: newfirmamentClient}
 }
 
-func StartgRPCStatsServer(serverIp, serverPort, firmamentAddress string) {
-	listen, err := net.Listen("tcp", serverIp+":"+serverPort)
+func StartgRPCStatsServer(statsServerAddress, firmamentAddress string) {
+	glog.Info("Starting stats server...")
+	listen, err := net.Listen("tcp", statsServerAddress)
 	if err != nil {
 		glog.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	RegisterPoseidonStatsServer(grpcServer, NewposeidonStatsServer(firmamentAddress))
+	RegisterPoseidonStatsServer(grpcServer, newposeidonStatsServer(firmamentAddress))
 	grpcServer.Serve(listen)
 }
