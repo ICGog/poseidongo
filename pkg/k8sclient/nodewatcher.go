@@ -94,9 +94,7 @@ func (this *NodeWatcher) enqueueNodeAddition(obj interface{}) {
 		}
 	}
 	cpuCapQuantity := node.Status.Capacity["cpu"]
-	cpuCap, _ := cpuCapQuantity.AsInt64()
 	cpuAllocQuantity := node.Status.Allocatable["cpu"]
-	cpuAlloc, _ := cpuAllocQuantity.AsInt64()
 	memCapQuantity := node.Status.Capacity["memory"]
 	memCap, _ := memCapQuantity.AsInt64()
 	memAllocQuantity := node.Status.Allocatable["memory"]
@@ -106,8 +104,8 @@ func (this *NodeWatcher) enqueueNodeAddition(obj interface{}) {
 		Phase:            NodeAdded,
 		IsReady:          isReady,
 		IsOutOfDisk:      isOutOfDisk,
-		CpuCapacity:      cpuCap,
-		CpuAllocatable:   cpuAlloc,
+		CpuCapacity:      cpuCapQuantity.MilliValue(),
+		CpuAllocatable:   cpuAllocQuantity.MilliValue(),
 		MemCapacityKb:    memCap / bytesToKb,
 		MemAllocatableKb: memAlloc / bytesToKb,
 		Labels:           node.Labels,

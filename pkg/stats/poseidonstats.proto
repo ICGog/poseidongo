@@ -27,10 +27,12 @@ service PoseidonStats {
 
 message NodeStats {
   string hostname = 1;
+  // CPU stats in millicores.
   uint64 cpu_allocatable = 2;
   uint64 cpu_capacity = 3;
   uint64 cpu_reservation = 4;
   uint64 cpu_utilization = 5;
+  // Memory stats in Kb.
   uint64 mem_allocatable = 6;
   uint64 mem_capacity = 7;
   uint64 mem_reservation = 8;
@@ -50,9 +52,11 @@ message NodeStatsResponse {
 message PodStats {
   string name = 1;
   string namespace = 2;
+  // CPU stats in millicores.
   uint64 cpu_limit = 3;
   uint64 cpu_request = 4;
   uint64 cpu_usage = 5;
+  // Memory stats in Kb.
   uint64 mem_limit = 6;
   uint64 mem_request = 7;
   uint64 mem_usage = 8;
@@ -61,6 +65,7 @@ message PodStats {
   double mem_page_faults_rate = 11;
   uint64 major_page_faults = 12;
   double major_page_faults_rate = 13;
+  // Network stats in Kb.
   uint64 net_rx = 14;
   uint64 net_rx_errors = 15;
   double net_rx_errors_rate = 16;

@@ -89,8 +89,7 @@ func (this *PodWatcher) enqueuePodAddition(obj interface{}) {
 	for _, container := range pod.Spec.Containers {
 		request := container.Resources.Requests
 		cpuReqQuantity := request["cpu"]
-		cpuReqCont, _ := cpuReqQuantity.AsInt64()
-		cpuReq += cpuReqCont
+		cpuReq += cpuReqQuantity.MilliValue()
 		memReqQuantity := request["memory"]
 		memReqCont, _ := memReqQuantity.AsInt64()
 		memReq += memReqCont

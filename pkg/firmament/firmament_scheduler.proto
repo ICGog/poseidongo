@@ -102,9 +102,11 @@ enum NodeReplyType {
 
 message TaskStats {
   TaskUID task_uid = 1;
+  // CPU stats in millicores.
   uint64 cpu_limit = 2;
   uint64 cpu_request = 3;
   uint64 cpu_usage = 4;
+  // Memory stats in Kb.
   uint64 mem_limit = 5;
   uint64 mem_request = 6;
   uint64 mem_usage = 7;
@@ -113,6 +115,7 @@ message TaskStats {
   double mem_page_faults_rate = 10;
   uint64 major_page_faults = 11;
   double major_page_faults_rate = 12;
+  // Network stats in Kb.
   uint64 net_rx = 13;
   uint64 net_rx_errors = 14;
   double net_rx_errors_rate = 15;
@@ -125,10 +128,12 @@ message TaskStats {
 
 message ResourceStats {
   ResourceUID resource_uid = 1;
+  // CPU stats in millicores.
   uint64 cpu_allocatable = 2;
   uint64 cpu_capacity = 3;
   uint64 cpu_reservation = 4;
   uint64 cpu_utilization = 5;
+  // Memory stats in Kb.
   uint64 mem_allocatable = 6;
   uint64 mem_capacity = 7;
   uint64 mem_reservation = 8;
