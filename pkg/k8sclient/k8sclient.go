@@ -31,7 +31,7 @@ var clientSet kubernetes.Interface
 
 func BindPodToNode(podName string, namespace string, nodeName string) {
 	// TODO(ionel): Reuse namspace clients!
-	clientSet.CoreV1().Pods(namespace).Bind(&v1.Binding{
+	err := clientSet.CoreV1().Pods(namespace).Bind(&v1.Binding{
 		meta_v1.TypeMeta{},
 		meta_v1.ObjectMeta{
 			Name: podName,
@@ -40,6 +40,9 @@ func BindPodToNode(podName string, namespace string, nodeName string) {
 			Namespace: namespace,
 			Name:      nodeName,
 		}})
+	if err != nil {
+		glog.Fatalf("Could not bind %v", err)
+	}
 }
 
 func DeletePod(podName string, namespace string) {
@@ -59,7 +62,7 @@ func New(kubeConfig string, firmamentAddress string) {
 	if err != nil {
 		glog.Fatalf("Failed to load client config: %v", err)
 	}
-	clientSet, err := kubernetes.NewForConfig(config)
+	clientSet, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		glog.Fatalf("Failed to create connection: %v", err)
 	}

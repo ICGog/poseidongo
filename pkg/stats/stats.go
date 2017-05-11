@@ -19,18 +19,20 @@
 package stats
 
 import (
-	"github.com/ICGog/poseidongo/pkg/firmament"
-	"github.com/golang/glog"
-	"google.golang.org/grpc"
 	"io"
 	"net"
+
+	"github.com/ICGog/poseidongo/pkg/firmament"
+	"github.com/ICGog/poseidongo/pkg/k8sclient"
+	"github.com/golang/glog"
+	"google.golang.org/grpc"
 )
 
 type poseidonStatsServer struct {
 	firmamentClient firmament.FirmamentSchedulerClient
 }
 
-func convertPodStatToTaskStat(podStats *PodStats) *firmament.TaskStats {
+func convertPodStatsToTaskStats(podStats *PodStats) *firmament.TaskStats {
 	return &firmament.TaskStats{
 		CpuLimit:            podStats.GetCpuLimit(),
 		CpuRequest:          podStats.GetCpuRequest(),
@@ -54,7 +56,7 @@ func convertPodStatToTaskStat(podStats *PodStats) *firmament.TaskStats {
 	}
 }
 
-func convertNodeStatToResourceStat(nodeStats *NodeStats) *firmament.ResourceStats {
+func convertNodeStatsToResourceStats(nodeStats *NodeStats) *firmament.ResourceStats {
 	return &firmament.ResourceStats{
 		CpuAllocatable: nodeStats.GetCpuAllocatable(),
 		CpuCapacity:    nodeStats.GetCpuCapacity(),
@@ -70,7 +72,7 @@ func convertNodeStatToResourceStat(nodeStats *NodeStats) *firmament.ResourceStat
 
 func (s *poseidonStatsServer) ReceiveNodeStats(stream PoseidonStats_ReceiveNodeStatsServer) error {
 	for {
-		nodeStat, err := stream.Recv()
+		nodeStats, err := stream.Recv()
 		if err == io.EOF {
 			return nil
 		}
@@ -78,52 +80,54 @@ func (s *poseidonStatsServer) ReceiveNodeStats(stream PoseidonStats_ReceiveNodeS
 			return err
 		}
 
-		resourceStat := convertNodeStatToResourceStat(nodeStat)
-
-		//TODO:(shiv)check the NodetoResource Map and get the resourceid and set the ResourceUid below
-
-		//resourceStat.ResourceUid =
-
-		firmament.AddNodeStats(s.firmamentClient, resourceStat)
-
+		resourceStats := convertNodeStatsToResourceStats(nodeStats)
+		rtnd, ok := k8sclient.NodeToRTND[nodeStats.GetHostname()]
+		if !ok {
+			// TODO(ionel): Handle case when node does not have an associated resource id.
+		}
+		resourceStats.ResourceUid = firmament.ResourceUID{
+			ResourceUid: rtnd.GetResourceDesc().GetUuid(),
+		}
+		firmament.AddNodeStats(s.firmamentClient, resourceStats)
 	}
 }
 
 func (s *poseidonStatsServer) ReceivePodStats(stream PoseidonStats_ReceivePodStatsServer) error {
 	for {
-		podStat, err := stream.Recv()
+		podStats, err := stream.Recv()
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		taskStat := convertPodStatToTaskStat(podStat)
-		//TODO:(shiv) Check the PodtoTask mao and get the taskUid and set the TaskUis below
-		//taskStat.TaskUid
-
-		firmament.AddTaskStats(s.firmamentClient, taskStat)
-
+		taskStats := convertPodStatsToTaskStats(podStat)
+		td, ok := k8sclient.PodToTD[podStats.GetTaskUid().GetTaskUid()]
+		if !ok {
+			// TODO(ionel): Handle case when pod does not have an associated task id.
+		}
+		taskStats.TaskUid = firmament.TaskUID{
+			TaskUid: td.GetUid(),
+		}
+		firmament.AddTaskStats(s.firmamentClient, taskStats)
 	}
 }
 
 func NewposeidonStatsServer(firmamentAddress string) *poseidonStatsServer {
 	newfirmamentClient, _, err := firmament.New(firmamentAddress)
 	if err != nil {
-		glog.Fatalln("Unable to initialze firmamentClient in stats", err)
+		glog.Fatalln("Unable to initialze Firmament client", err)
 
 	}
 	return &poseidonStatsServer{firmamentClient: newfirmamentClient}
 }
 
-// StartgRPCStatsServer will run in a separate goroutine
-//
-func StartgRPCStatsServer(ip, port, firmamentAddress string) {
-	lis, err := net.Listen("tcp", ip+":"+port)
+func StartgRPCStatsServer(serverIp, serverPort, firmamentAddress string) {
+	listen, err := net.Listen("tcp", serverIp+":"+serverPort)
 	if err != nil {
 		glog.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
 	RegisterPoseidonStatsServer(grpcServer, NewposeidonStatsServer(firmamentAddress))
-	grpcServer.Serve(lis)
+	grpcServer.Serve(listen)
 }

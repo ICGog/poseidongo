@@ -27,11 +27,11 @@ import (
 
 const bytesToKb = 1024
 
-var podToTD map[string]*firmament.TaskDescriptor
+var PodToTD map[string]*firmament.TaskDescriptor
 var TaskIDToPod map[uint64]string
 var jobIDToJD map[string]*firmament.JobDescriptor
 var jobNumIncompleteTasks map[string]int
-var nodeToRTND map[string]*firmament.ResourceTopologyNodeDescriptor
+var NodeToRTND map[string]*firmament.ResourceTopologyNodeDescriptor
 var ResIDToNode map[string]string
 
 type NodePhase string
