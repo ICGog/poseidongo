@@ -36,15 +36,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-func NewNodeWatcher(client kubernetes.Interface, firmamentAddress string) *NodeWatcher {
+func NewNodeWatcher(client kubernetes.Interface, fc firmament.FirmamentSchedulerClient) *NodeWatcher {
 	glog.Info("Starting NodeWatcher...")
 	NodeToRTND = make(map[string]*firmament.ResourceTopologyNodeDescriptor)
 	ResIDToNode = make(map[string]string)
-	// TODO(ionel): Close connection.
-	fc, _, err := firmament.New(firmamentAddress)
-	if err != nil {
-		panic(err)
-	}
 	nodewatcher := &NodeWatcher{
 		clientset: client,
 		fc:        fc,

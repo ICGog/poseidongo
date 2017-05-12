@@ -36,17 +36,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-func NewPodWatcher(schedulerName string, client kubernetes.Interface, firmamentAddress string) *PodWatcher {
+func NewPodWatcher(schedulerName string, client kubernetes.Interface, fc firmament.FirmamentSchedulerClient) *PodWatcher {
 	glog.Info("Starting PodWatcher...")
 	PodToTD = make(map[PodIdentifier]*firmament.TaskDescriptor)
 	TaskIDToPod = make(map[uint64]PodIdentifier)
 	jobIDToJD = make(map[string]*firmament.JobDescriptor)
 	jobNumIncompleteTasks = make(map[string]int)
-	// TODO(ionel): Close connection.
-	fc, _, err := firmament.New(firmamentAddress)
-	if err != nil {
-		panic(err)
-	}
 	podWatcher := &PodWatcher{
 		clientset: client,
 		fc:        fc,

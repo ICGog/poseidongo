@@ -19,6 +19,7 @@
 package k8sclient
 
 import (
+	"github.com/ICGog/poseidongo/pkg/firmament"
 	"github.com/golang/glog"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -66,10 +67,15 @@ func New(schedulerName string, kubeConfig string, firmamentAddress string) {
 	if err != nil {
 		glog.Fatalf("Failed to create connection: %v", err)
 	}
+	fc, conn, err := firmament.New(firmamentAddress)
+	if err != nil {
+		glog.Fatalf("Failed to connect to Firmament: %v", err)
+	}
+	defer conn.Close()
 	glog.Info("k8s newclient called")
 	stopCh := make(chan struct{})
-	go NewPodWatcher(schedulerName, clientSet, firmamentAddress).Run(stopCh, 1)
-	go NewNodeWatcher(clientSet, firmamentAddress).Run(stopCh, 1)
+	go NewPodWatcher(schedulerName, clientSet, fc).Run(stopCh, 1)
+	go NewNodeWatcher(clientSet, fc).Run(stopCh, 1)
 
 	// We block here.
 	<-stopCh

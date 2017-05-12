@@ -154,15 +154,6 @@ func (s *poseidonStatsServer) ReceivePodStats(stream PoseidonStats_ReceivePodSta
 	}
 }
 
-func newposeidonStatsServer(firmamentAddress string) *poseidonStatsServer {
-	newfirmamentClient, _, err := firmament.New(firmamentAddress)
-	if err != nil {
-		glog.Fatalln("Unable to initialze Firmament client", err)
-
-	}
-	return &poseidonStatsServer{firmamentClient: newfirmamentClient}
-}
-
 func StartgRPCStatsServer(statsServerAddress, firmamentAddress string) {
 	glog.Info("Starting stats server...")
 	listen, err := net.Listen("tcp", statsServerAddress)
@@ -170,6 +161,12 @@ func StartgRPCStatsServer(statsServerAddress, firmamentAddress string) {
 		glog.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	RegisterPoseidonStatsServer(grpcServer, newposeidonStatsServer(firmamentAddress))
+	fc, conn, err := firmament.New(firmamentAddress)
+	if err != nil {
+		glog.Fatalln("Unable to initialze Firmament client", err)
+
+	}
+	defer conn.Close()
+	RegisterPoseidonStatsServer(grpcServer, &poseidonStatsServer{firmamentClient: fc})
 	grpcServer.Serve(listen)
 }
