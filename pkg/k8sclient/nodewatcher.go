@@ -20,6 +20,7 @@ package k8sclient
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -85,14 +86,9 @@ func NewNodeWatcher(client kubernetes.Interface, fc firmament.FirmamentScheduler
 	return nodewatcher
 }
 
-func (this *NodeWatcher) enqueueNodeAddition(key, obj interface{}) {
-	node := obj.(*v1.Node)
-	if node.Spec.Unschedulable {
-		glog.Info("enqueueNodeAddition: received an Unschedulable node", node.Name)
-		return
-	}
-	isReady := false
-	isOutOfDisk := false
+func (this *NodeWatcher) getReadyAndOutOfDiskConditions(node *v1.Node) (isReady bool, isOutOfDisk bool) {
+	isReady = false
+	isOutOfDisk = false
 	for _, cond := range node.Status.Conditions {
 		switch cond.Type {
 		case "OutOfDisk":
@@ -101,15 +97,20 @@ func (this *NodeWatcher) enqueueNodeAddition(key, obj interface{}) {
 			isReady = cond.Status == "True"
 		}
 	}
+	return isReady, isOutOfDisk
+}
+
+func (this *NodeWatcher) parseNode(node *v1.Node, phase NodePhase) *Node {
+	isReady, isOutOfDisk := this.getReadyAndOutOfDiskConditions(node)
 	cpuCapQuantity := node.Status.Capacity["cpu"]
 	cpuAllocQuantity := node.Status.Allocatable["cpu"]
 	memCapQuantity := node.Status.Capacity["memory"]
 	memCap, _ := memCapQuantity.AsInt64()
 	memAllocQuantity := node.Status.Allocatable["memory"]
 	memAlloc, _ := memAllocQuantity.AsInt64()
-	addedNode := &Node{
+	return &Node{
 		Hostname:         node.Name,
-		Phase:            NodeAdded,
+		Phase:            phase,
 		IsReady:          isReady,
 		IsOutOfDisk:      isOutOfDisk,
 		CpuCapacity:      cpuCapQuantity.MilliValue(),
@@ -119,12 +120,64 @@ func (this *NodeWatcher) enqueueNodeAddition(key, obj interface{}) {
 		Labels:           node.Labels,
 		Annotations:      node.Annotations,
 	}
+}
+
+func (this *NodeWatcher) enqueueNodeAddition(key, obj interface{}) {
+	node := obj.(*v1.Node)
+	if node.Spec.Unschedulable {
+		glog.Info("enqueueNodeAddition: received an Unschedulable node", node.Name)
+		return
+	}
+	addedNode := this.parseNode(node, NodeAdded)
 	this.nodeWorkQueue.Add(key, addedNode)
 	glog.Info("enqueueNodeAdition: Added node ", addedNode.Hostname)
 }
 
 func (this *NodeWatcher) enqueueNodeUpdate(key, oldObj, newObj interface{}) {
-	// TODO(ionel): Implement!
+	oldNode := oldObj.(*v1.Node)
+	newNode := newObj.(*v1.Node)
+	if oldNode.Spec.Unschedulable != newNode.Spec.Unschedulable {
+		if oldNode.Spec.Unschedulable {
+			addedNode := this.parseNode(newNode, NodeAdded)
+			this.nodeWorkQueue.Add(key, addedNode)
+			glog.Info("enqueueNodeUpdate: Added node ", addedNode.Hostname)
+			return
+		} else {
+			// Can not schedule pods on the node any more.
+			deletedNode := this.parseNode(newNode, NodeDeleted)
+			this.nodeWorkQueue.Add(key, deletedNode)
+			glog.Info("enqueueNodeUpdate: Deleted node ", deletedNode.Hostname)
+			return
+		}
+	}
+	oldIsReady, oldIsOutOfDisk := this.getReadyAndOutOfDiskConditions(oldNode)
+	newIsReady, newIsOutOfDisk := this.getReadyAndOutOfDiskConditions(newNode)
+
+	if oldIsReady != newIsReady || oldIsOutOfDisk != newIsOutOfDisk {
+		if newIsReady && !newIsOutOfDisk {
+			addedNode := this.parseNode(newNode, NodeAdded)
+			this.nodeWorkQueue.Add(key, addedNode)
+			glog.Info("enqueueNodeUpdate: Added node ", addedNode.Hostname)
+			return
+		} else {
+			failedNode := this.parseNode(newNode, NodeFailed)
+			this.nodeWorkQueue.Add(key, failedNode)
+			glog.Info("enqueueNodeUpdate: Failed node ", failedNode.Hostname)
+			return
+		}
+	}
+	nodeUpdated := false
+	if !reflect.DeepEqual(oldNode.Labels, newNode.Labels) {
+		nodeUpdated = true
+	}
+	if !reflect.DeepEqual(oldNode.Annotations, newNode.Annotations) {
+		nodeUpdated = true
+	}
+	if nodeUpdated {
+		updatedNode := this.parseNode(newNode, NodeUpdated)
+		this.nodeWorkQueue.Add(key, updatedNode)
+		glog.Info("enqueueNodeUpdate: Updated node ", updatedNode.Hostname)
+	}
 }
 
 func (this *NodeWatcher) enqueueNodeDeletion(key, obj interface{}) {
@@ -214,6 +267,12 @@ func (this *NodeWatcher) nodeWorker() {
 					delete(ResIDToNode, resID)
 					NodesCond.L.Unlock()
 				case NodeUpdated:
+					NodesCond.L.Lock()
+					rtnd, ok := NodeToRTND[node.Hostname]
+					NodesCond.L.Unlock()
+					if !ok {
+						glog.Fatalf("Node %s does not exist", node.Hostname)
+					}
 					// TODO(ionel): Handle update case.
 				default:
 					glog.Fatalf("Unexpected node %s phase %s", node.Hostname, node.Phase)
