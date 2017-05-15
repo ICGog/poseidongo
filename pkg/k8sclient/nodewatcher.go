@@ -273,7 +273,7 @@ func (this *NodeWatcher) nodeWorker() {
 					if !ok {
 						glog.Fatalf("Node %s does not exist", node.Hostname)
 					}
-					// TODO(ionel): Handle update case.
+					firmament.NodeUpdated(this.fc, rtnd)
 				default:
 					glog.Fatalf("Unexpected node %s phase %s", node.Hostname, node.Phase)
 				}

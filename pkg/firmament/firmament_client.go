@@ -141,6 +141,20 @@ func NodeRemoved(client FirmamentSchedulerClient, ruid *ResourceUID) {
 	}
 }
 
+func NodeUpdated(client FirmamentSchedulerClient, rtnd *ResourceTopologyNodeDescriptor) {
+	nUpdatedResp, err := client.NodeUpdated(context.Background(), rtnd)
+	if err != nil {
+		grpclog.Fatalf("%v.NodeUpdated(_) = _, %v: ", client, err)
+	}
+	switch nUpdatedResp.Type {
+	case NodeReplyType_NODE_NOT_FOUND:
+		glog.Fatalf("Tried to updated non-existing node %s", rtnd.ResourceDesc.Uuid)
+	case NodeReplyType_NODE_UPDATED_OK:
+	default:
+		panic(fmt.Sprintf("Unexpected NodeUpdated response %v for node %v", nUpdatedResp, rtnd.ResourceDesc.Uuid))
+	}
+}
+
 func AddTaskStats(client FirmamentSchedulerClient, ts *TaskStats) {
 	_, err := client.AddTaskStats(context.Background(), ts)
 	if err != nil {
