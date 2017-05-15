@@ -33,7 +33,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 )
 
 func NewPodWatcher(schedulerName string, client kubernetes.Interface, fc firmament.FirmamentSchedulerClient) *PodWatcher {
@@ -66,22 +65,34 @@ func NewPodWatcher(schedulerName string, client kubernetes.Interface, fc firmame
 		0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				podWatcher.enqueuePodAddition(obj)
+				key, err := cache.MetaNamespaceKeyFunc(obj)
+				if err != nil {
+					glog.Errorf("AddFunc: error getting key %v", err)
+				}
+				podWatcher.enqueuePodAddition(key, obj)
 			},
 			UpdateFunc: func(old, new interface{}) {
-				podWatcher.enqueuePodUpdate(old, new)
+				key, err := cache.MetaNamespaceKeyFunc(new)
+				if err != nil {
+					glog.Errorf("UpdateFunc: error getting key %v", err)
+				}
+				podWatcher.enqueuePodUpdate(key, old, new)
 			},
 			DeleteFunc: func(obj interface{}) {
-				podWatcher.enqueuePodDeletion(obj)
+				key, err := cache.MetaNamespaceKeyFunc(obj)
+				if err != nil {
+					glog.Errorf("DeleteFunc: error getting key %v", err)
+				}
+				podWatcher.enqueuePodDeletion(key, obj)
 			},
 		},
 	)
 	podWatcher.controller = controller
-	podWatcher.podWorkQueue = workqueue.NewNamedDelayingQueue("PodQueue")
+	podWatcher.podWorkQueue = NewKeyedQueue()
 	return podWatcher
 }
 
-func (this *PodWatcher) enqueuePodAddition(obj interface{}) {
+func (this *PodWatcher) enqueuePodAddition(key interface{}, obj interface{}) {
 	pod := obj.(*v1.Pod)
 	cpuReq := int64(0)
 	memReq := int64(0)
@@ -116,11 +127,11 @@ func (this *PodWatcher) enqueuePodAddition(obj interface{}) {
 		Annotations:  pod.Annotations,
 		NodeSelector: pod.Spec.NodeSelector,
 	}
-	this.podWorkQueue.Add(addedPod)
+	this.podWorkQueue.Add(key, addedPod)
 	glog.Info("enqueuePodAddition: Added pod ", addedPod.Identifier)
 }
 
-func (this *PodWatcher) enqueuePodDeletion(obj interface{}) {
+func (this *PodWatcher) enqueuePodDeletion(key interface{}, obj interface{}) {
 	// TODO(ionel): This method is called when the pod is scheduled!
 	pod := obj.(*v1.Pod)
 	deletedPod := &Pod{
@@ -130,11 +141,11 @@ func (this *PodWatcher) enqueuePodDeletion(obj interface{}) {
 		},
 		State: PodDeleted,
 	}
-	//	this.podWorkQueue.Add(deletedPod)
+	//	this.podWorkQueue.Add(key, deletedPod)
 	glog.Info("enqueuePodDeletion: Added pod ", deletedPod.Identifier)
 }
 
-func (this *PodWatcher) enqueuePodUpdate(oldObj, newObj interface{}) {
+func (this *PodWatcher) enqueuePodUpdate(key, oldObj, newObj interface{}) {
 	// TODO(ionel): Implement!
 	oldPod := oldObj.(*v1.Pod)
 	newPod := newObj.(*v1.Pod)
@@ -169,87 +180,88 @@ func (this *PodWatcher) Run(stopCh <-chan struct{}, nWorkers int) {
 func (this *PodWatcher) podWorker() {
 	for {
 		func() {
-			key, quit := this.podWorkQueue.Get()
+			key, items, quit := this.podWorkQueue.Get()
 			if quit {
 				return
 			}
-			pod := key.(*Pod)
-			switch pod.State {
-			case PodPending:
-				// TODO(ionel): We generate a job per pod. Add a field to the Pod struct that uniquely identifies jobs/daemon sets and use that one instead to group pods into Firmament jobs.
-				jobId := this.generateJobID(pod.Identifier.Name)
-				jd, ok := jobIDToJD[jobId]
-				if !ok {
-					jd = this.createNewJob(pod.Identifier.Name)
-					jobIDToJD[jobId] = jd
-					jobNumIncompleteTasks[jobId] = 0
+			for _, item := range items {
+				pod := item.(*Pod)
+				switch pod.State {
+				case PodPending:
+					// TODO(ionel): We generate a job per pod. Add a field to the Pod struct that uniquely identifies jobs/daemon sets and use that one instead to group pods into Firmament jobs.
+					jobId := this.generateJobID(pod.Identifier.Name)
+					jd, ok := jobIDToJD[jobId]
+					if !ok {
+						jd = this.createNewJob(pod.Identifier.Name)
+						jobIDToJD[jobId] = jd
+						jobNumIncompleteTasks[jobId] = 0
+					}
+					td := this.addTaskToJob(pod, jd)
+					jobNumIncompleteTasks[jobId]++
+					PodToTD[pod.Identifier] = td
+					TaskIDToPod[td.GetUid()] = pod.Identifier
+					taskDescription := &firmament.TaskDescription{
+						TaskDescriptor: td,
+						JobDescriptor:  jd,
+					}
+					firmament.TaskSubmitted(this.fc, taskDescription)
+				case PodSucceeded:
+					td, ok := PodToTD[pod.Identifier]
+					if !ok {
+						glog.Fatalf("Pod %v does not exist", pod.Identifier)
+					}
+					firmament.TaskCompleted(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
+					delete(PodToTD, pod.Identifier)
+					delete(TaskIDToPod, td.GetUid())
+					jobId := this.generateJobID(pod.Identifier.Name)
+					jobNumIncompleteTasks[jobId]--
+					if jobNumIncompleteTasks[jobId] == 0 {
+						// All tasks completed => Job is completed.
+						delete(jobNumIncompleteTasks, jobId)
+						delete(jobIDToJD, jobId)
+					} else {
+						// XXX(ionel): We currently leave the deleted task in the job's
+						// root/spawned task list. We do not delete it in case we need
+						// to consistently regenerate taskUids out of job name and tasks'
+						// position within the Spawned list.
+					}
+				case PodDeleted:
+					td, ok := PodToTD[pod.Identifier]
+					if !ok {
+						glog.Fatalf("Pod %s does not exist", pod.Identifier)
+					}
+					firmament.TaskRemoved(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
+					delete(PodToTD, pod.Identifier)
+					delete(TaskIDToPod, td.GetUid())
+					jobId := this.generateJobID(pod.Identifier.Name)
+					jobNumIncompleteTasks[jobId]--
+					if jobNumIncompleteTasks[jobId] == 0 {
+						// Clean state because the job doesn't have any tasks left.
+						delete(jobNumIncompleteTasks, jobId)
+						delete(jobIDToJD, jobId)
+					} else {
+						// XXX(ionel): We currently leave the deleted task in the job's
+						// root/spawned task list. We do not delete it in case we need
+						// to consistently regenerate taskUids out of job name and tasks'
+						// position within the Spawned list.
+					}
+				case PodFailed:
+					td, ok := PodToTD[pod.Identifier]
+					if !ok {
+						glog.Fatalf("Pod %s does not exist", pod.Identifier)
+					}
+					firmament.TaskFailed(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
+					// TODO(ionel): We do not delete the task from podToTD and taskIDToPod in case the task may be rescheduled. Check how K8s restart policies work and decide what to do here.
+					// TODO(ionel): Should we delete the task from JD's spawned field?
+				case PodRunning:
+					// We don't have to do anything.
+				case PodUnknown:
+					glog.Errorf("Pod %s in unknown state", pod.Identifier)
+					// TODO(ionel): Handle Unknown case.
+				default:
+					glog.Fatalf("Pod %v in unexpected state %v", pod.Identifier, pod.State)
 				}
-				td := this.addTaskToJob(pod, jd)
-				jobNumIncompleteTasks[jobId]++
-				PodToTD[pod.Identifier] = td
-				TaskIDToPod[td.GetUid()] = pod.Identifier
-				taskDescription := &firmament.TaskDescription{
-					TaskDescriptor: td,
-					JobDescriptor:  jd,
-				}
-				firmament.TaskSubmitted(this.fc, taskDescription)
-			case PodSucceeded:
-				td, ok := PodToTD[pod.Identifier]
-				if !ok {
-					glog.Fatalf("Pod %v does not exist", pod.Identifier)
-				}
-				firmament.TaskCompleted(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
-				delete(PodToTD, pod.Identifier)
-				delete(TaskIDToPod, td.GetUid())
-				jobId := this.generateJobID(pod.Identifier.Name)
-				jobNumIncompleteTasks[jobId]--
-				if jobNumIncompleteTasks[jobId] == 0 {
-					// All tasks completed => Job is completed.
-					delete(jobNumIncompleteTasks, jobId)
-					delete(jobIDToJD, jobId)
-				} else {
-					// XXX(ionel): We currently leave the deleted task in the job's
-					// root/spawned task list. We do not delete it in case we need
-					// to consistently regenerate taskUids out of job name and tasks'
-					// position within the Spawned list.
-				}
-			case PodDeleted:
-				td, ok := PodToTD[pod.Identifier]
-				if !ok {
-					glog.Fatalf("Pod %s does not exist", pod.Identifier)
-				}
-				firmament.TaskRemoved(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
-				delete(PodToTD, pod.Identifier)
-				delete(TaskIDToPod, td.GetUid())
-				jobId := this.generateJobID(pod.Identifier.Name)
-				jobNumIncompleteTasks[jobId]--
-				if jobNumIncompleteTasks[jobId] == 0 {
-					// Clean state because the job doesn't have any tasks left.
-					delete(jobNumIncompleteTasks, jobId)
-					delete(jobIDToJD, jobId)
-				} else {
-					// XXX(ionel): We currently leave the deleted task in the job's
-					// root/spawned task list. We do not delete it in case we need
-					// to consistently regenerate taskUids out of job name and tasks'
-					// position within the Spawned list.
-				}
-			case PodFailed:
-				td, ok := PodToTD[pod.Identifier]
-				if !ok {
-					glog.Fatalf("Pod %s does not exist", pod.Identifier)
-				}
-				firmament.TaskFailed(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
-				// TODO(ionel): We do not delete the task from podToTD and taskIDToPod in case the task may be rescheduled. Check how K8s restart policies work and decide what to do here.
-				// TODO(ionel): Should we delete the task from JD's spawned field?
-			case PodRunning:
-				// We don't have to do anything.
-			case PodUnknown:
-				glog.Errorf("Pod %s in unknown state", pod.Identifier)
-				// TODO(ionel): Handle Unknown case.
-			default:
-				glog.Fatalf("Pod %v in unexpected state %v", pod.Identifier, pod.State)
 			}
-			glog.Info("Pod data received from the queue", pod)
 			defer this.podWorkQueue.Done(key)
 		}()
 	}

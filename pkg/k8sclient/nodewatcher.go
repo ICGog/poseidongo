@@ -33,7 +33,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 )
 
 func NewNodeWatcher(client kubernetes.Interface, fc firmament.FirmamentSchedulerClient) *NodeWatcher {
@@ -57,22 +56,34 @@ func NewNodeWatcher(client kubernetes.Interface, fc firmament.FirmamentScheduler
 		0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				nodewatcher.enqueueNodeAddition(obj)
+				key, err := cache.MetaNamespaceKeyFunc(obj)
+				if err != nil {
+					glog.Errorf("AddFunc: error getting key %v", err)
+				}
+				nodewatcher.enqueueNodeAddition(key, obj)
 			},
 			UpdateFunc: func(old, new interface{}) {
-				nodewatcher.enqueueNodeUpdate(old, new)
+				key, err := cache.MetaNamespaceKeyFunc(new)
+				if err != nil {
+					glog.Errorf("UpdateFunc: error getting key %v", err)
+				}
+				nodewatcher.enqueueNodeUpdate(key, old, new)
 			},
 			DeleteFunc: func(obj interface{}) {
-				nodewatcher.enqueueNodeDeletion(obj)
+				key, err := cache.MetaNamespaceKeyFunc(obj)
+				if err != nil {
+					glog.Errorf("DeleteFunc: error getting key %v", err)
+				}
+				nodewatcher.enqueueNodeDeletion(key, obj)
 			},
 		},
 	)
 	nodewatcher.controller = controller
-	nodewatcher.nodeWorkQueue = workqueue.NewNamedDelayingQueue("nodeQueue")
+	nodewatcher.nodeWorkQueue = NewKeyedQueue()
 	return nodewatcher
 }
 
-func (this *NodeWatcher) enqueueNodeAddition(obj interface{}) {
+func (this *NodeWatcher) enqueueNodeAddition(key, obj interface{}) {
 	node := obj.(*v1.Node)
 	if node.Spec.Unschedulable {
 		glog.Info("enqueueNodeAddition: received an Unschedulable node", node.Name)
@@ -106,15 +117,15 @@ func (this *NodeWatcher) enqueueNodeAddition(obj interface{}) {
 		Labels:           node.Labels,
 		Annotations:      node.Annotations,
 	}
-	this.nodeWorkQueue.Add(addedNode)
+	this.nodeWorkQueue.Add(key, addedNode)
 	glog.Info("enqueueNodeAdition: Added node ", addedNode.Hostname)
 }
 
-func (this *NodeWatcher) enqueueNodeUpdate(oldObj, newObj interface{}) {
+func (this *NodeWatcher) enqueueNodeUpdate(key, oldObj, newObj interface{}) {
 	// TODO(ionel): Implement!
 }
 
-func (this *NodeWatcher) enqueueNodeDeletion(obj interface{}) {
+func (this *NodeWatcher) enqueueNodeDeletion(key, obj interface{}) {
 	node := obj.(*v1.Node)
 	if node.Spec.Unschedulable {
 		// Poseidon doesn't case about Unschedulable nodes.
@@ -124,7 +135,7 @@ func (this *NodeWatcher) enqueueNodeDeletion(obj interface{}) {
 		Hostname: node.Name,
 		Phase:    NodeDeleted,
 	}
-	this.nodeWorkQueue.Add(deletedNode)
+	this.nodeWorkQueue.Add(key, deletedNode)
 	glog.Info("enqueueNodeDeletion: Added node ", deletedNode.Hostname)
 }
 
@@ -155,44 +166,46 @@ func (this *NodeWatcher) Run(stopCh <-chan struct{}, nWorkers int) {
 func (this *NodeWatcher) nodeWorker() {
 	for {
 		func() {
-			key, quit := this.nodeWorkQueue.Get()
+			key, items, quit := this.nodeWorkQueue.Get()
 			if quit {
 				return
 			}
-			node := key.(*Node)
-			switch node.Phase {
-			case NodeAdded:
-				rtnd := this.createResourceTopologyForNode(node)
-				_, ok := NodeToRTND[node.Hostname]
-				if ok {
-					glog.Fatalf("Node %s already exists", node.Hostname)
+			for _, item := range items {
+				node := item.(*Node)
+				switch node.Phase {
+				case NodeAdded:
+					rtnd := this.createResourceTopologyForNode(node)
+					_, ok := NodeToRTND[node.Hostname]
+					if ok {
+						glog.Fatalf("Node %s already exists", node.Hostname)
+					}
+					NodeToRTND[node.Hostname] = rtnd
+					ResIDToNode[rtnd.GetResourceDesc().GetUuid()] = node.Hostname
+					firmament.NodeAdded(this.fc, rtnd)
+				case NodeDeleted:
+					rtnd, ok := NodeToRTND[node.Hostname]
+					if !ok {
+						glog.Fatalf("Node %s does not exist", node.Hostname)
+					}
+					resID := rtnd.GetResourceDesc().GetUuid()
+					firmament.NodeRemoved(this.fc, &firmament.ResourceUID{ResourceUid: resID})
+					delete(NodeToRTND, node.Hostname)
+					delete(ResIDToNode, resID)
+				case NodeFailed:
+					rtnd, ok := NodeToRTND[node.Hostname]
+					if !ok {
+						glog.Fatalf("Node %s does not exist", node.Hostname)
+					}
+					resID := rtnd.GetResourceDesc().GetUuid()
+					firmament.NodeFailed(this.fc, &firmament.ResourceUID{ResourceUid: resID})
+					this.cleanResourceStateForNode(rtnd)
+					delete(NodeToRTND, node.Hostname)
+					delete(ResIDToNode, resID)
+				case NodeUpdated:
+					// TODO(ionel): Handle update case.
+				default:
+					glog.Fatalf("Unexpected node %s phase %s", node.Hostname, node.Phase)
 				}
-				NodeToRTND[node.Hostname] = rtnd
-				ResIDToNode[rtnd.GetResourceDesc().GetUuid()] = node.Hostname
-				firmament.NodeAdded(this.fc, rtnd)
-			case NodeDeleted:
-				rtnd, ok := NodeToRTND[node.Hostname]
-				if !ok {
-					glog.Fatalf("Node %s does not exist", node.Hostname)
-				}
-				resID := rtnd.GetResourceDesc().GetUuid()
-				firmament.NodeRemoved(this.fc, &firmament.ResourceUID{ResourceUid: resID})
-				delete(NodeToRTND, node.Hostname)
-				delete(ResIDToNode, resID)
-			case NodeFailed:
-				rtnd, ok := NodeToRTND[node.Hostname]
-				if !ok {
-					glog.Fatalf("Node %s does not exist", node.Hostname)
-				}
-				resID := rtnd.GetResourceDesc().GetUuid()
-				firmament.NodeFailed(this.fc, &firmament.ResourceUID{ResourceUid: resID})
-				this.cleanResourceStateForNode(rtnd)
-				delete(NodeToRTND, node.Hostname)
-				delete(ResIDToNode, resID)
-			case NodeUpdated:
-				// TODO(ionel): Handle update case.
-			default:
-				glog.Fatalf("Unexpected node %s phase %s", node.Hostname, node.Phase)
 			}
 			defer this.nodeWorkQueue.Done(key)
 		}()

@@ -22,7 +22,6 @@ import (
 	"github.com/ICGog/poseidongo/pkg/firmament"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 )
 
 const bytesToKb = 1024
@@ -90,7 +89,7 @@ type Pod struct {
 type NodeWatcher struct {
 	//ID string
 	clientset     kubernetes.Interface
-	nodeWorkQueue workqueue.DelayingInterface
+	nodeWorkQueue Queue
 	controller    cache.Controller
 	fc            firmament.FirmamentSchedulerClient
 }
@@ -98,7 +97,7 @@ type NodeWatcher struct {
 type PodWatcher struct {
 	//ID string
 	clientset    kubernetes.Interface
-	podWorkQueue workqueue.DelayingInterface
+	podWorkQueue Queue
 	controller   cache.Controller
 	fc           firmament.FirmamentSchedulerClient
 }
