@@ -50,11 +50,15 @@ func schedule(fc firmament.FirmamentSchedulerClient) {
 		for _, delta := range deltas.GetDeltas() {
 			switch delta.GetType() {
 			case firmament.SchedulingDelta_PLACE:
+				k8sclient.PodsCond.L.Lock()
 				podIdentifier, ok := k8sclient.TaskIDToPod[delta.GetTaskId()]
+				k8sclient.PodsCond.L.Unlock()
 				if !ok {
 					glog.Fatalf("Placed task %d without pod pairing", delta.GetTaskId())
 				}
+				k8sclient.NodesCond.L.Lock()
 				nodeName, ok := k8sclient.ResIDToNode[delta.GetResourceId()]
+				k8sclient.NodesCond.L.Unlock()
 				if !ok {
 					glog.Fatalf("Placed task %d on resource %s without node pairing", delta.GetTaskId(), delta.GetResourceId())
 				}

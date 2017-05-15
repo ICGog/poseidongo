@@ -19,6 +19,8 @@
 package k8sclient
 
 import (
+	"sync"
+
 	"github.com/ICGog/poseidongo/pkg/firmament"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -26,10 +28,15 @@ import (
 
 const bytesToKb = 1024
 
+// Used to guard access to the pod, task and job related maps.
+var PodsCond *sync.Cond
 var PodToTD map[PodIdentifier]*firmament.TaskDescriptor
 var TaskIDToPod map[uint64]PodIdentifier
 var jobIDToJD map[string]*firmament.JobDescriptor
 var jobNumIncompleteTasks map[string]int
+
+// Used to guard access to the node and resource related maps.
+var NodesCond *sync.Cond
 var NodeToRTND map[string]*firmament.ResourceTopologyNodeDescriptor
 var ResIDToNode map[string]string
 

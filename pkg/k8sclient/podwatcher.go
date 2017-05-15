@@ -20,6 +20,7 @@ package k8sclient
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ICGog/poseidongo/pkg/firmament"
@@ -37,6 +38,7 @@ import (
 
 func NewPodWatcher(schedulerName string, client kubernetes.Interface, fc firmament.FirmamentSchedulerClient) *PodWatcher {
 	glog.Info("Starting PodWatcher...")
+	PodsCond = sync.NewCond(&sync.Mutex{})
 	PodToTD = make(map[PodIdentifier]*firmament.TaskDescriptor)
 	TaskIDToPod = make(map[uint64]PodIdentifier)
 	jobIDToJD = make(map[string]*firmament.JobDescriptor)
@@ -188,6 +190,7 @@ func (this *PodWatcher) podWorker() {
 				pod := item.(*Pod)
 				switch pod.State {
 				case PodPending:
+					PodsCond.L.Lock()
 					// TODO(ionel): We generate a job per pod. Add a field to the Pod struct that uniquely identifies jobs/daemon sets and use that one instead to group pods into Firmament jobs.
 					jobId := this.generateJobID(pod.Identifier.Name)
 					jd, ok := jobIDToJD[jobId]
@@ -204,13 +207,17 @@ func (this *PodWatcher) podWorker() {
 						TaskDescriptor: td,
 						JobDescriptor:  jd,
 					}
+					PodsCond.L.Unlock()
 					firmament.TaskSubmitted(this.fc, taskDescription)
 				case PodSucceeded:
+					PodsCond.L.Lock()
 					td, ok := PodToTD[pod.Identifier]
+					PodsCond.L.Unlock()
 					if !ok {
 						glog.Fatalf("Pod %v does not exist", pod.Identifier)
 					}
 					firmament.TaskCompleted(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
+					PodsCond.L.Lock()
 					delete(PodToTD, pod.Identifier)
 					delete(TaskIDToPod, td.GetUid())
 					jobId := this.generateJobID(pod.Identifier.Name)
@@ -225,12 +232,16 @@ func (this *PodWatcher) podWorker() {
 						// to consistently regenerate taskUids out of job name and tasks'
 						// position within the Spawned list.
 					}
+					PodsCond.L.Unlock()
 				case PodDeleted:
+					PodsCond.L.Lock()
 					td, ok := PodToTD[pod.Identifier]
+					PodsCond.L.Unlock()
 					if !ok {
 						glog.Fatalf("Pod %s does not exist", pod.Identifier)
 					}
 					firmament.TaskRemoved(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
+					PodsCond.L.Lock()
 					delete(PodToTD, pod.Identifier)
 					delete(TaskIDToPod, td.GetUid())
 					jobId := this.generateJobID(pod.Identifier.Name)
@@ -245,8 +256,11 @@ func (this *PodWatcher) podWorker() {
 						// to consistently regenerate taskUids out of job name and tasks'
 						// position within the Spawned list.
 					}
+					PodsCond.L.Unlock()
 				case PodFailed:
+					PodsCond.L.Lock()
 					td, ok := PodToTD[pod.Identifier]
+					PodsCond.L.Unlock()
 					if !ok {
 						glog.Fatalf("Pod %s does not exist", pod.Identifier)
 					}

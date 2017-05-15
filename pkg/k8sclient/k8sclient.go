@@ -74,8 +74,8 @@ func New(schedulerName string, kubeConfig string, firmamentAddress string) {
 	defer conn.Close()
 	glog.Info("k8s newclient called")
 	stopCh := make(chan struct{})
-	go NewPodWatcher(schedulerName, clientSet, fc).Run(stopCh, 1)
-	go NewNodeWatcher(clientSet, fc).Run(stopCh, 1)
+	go NewPodWatcher(schedulerName, clientSet, fc).Run(stopCh, 10)
+	go NewNodeWatcher(clientSet, fc).Run(stopCh, 10)
 
 	// We block here.
 	<-stopCh

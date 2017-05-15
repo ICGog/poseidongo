@@ -21,6 +21,7 @@ package k8sclient
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ICGog/poseidongo/pkg/firmament"
@@ -37,6 +38,7 @@ import (
 
 func NewNodeWatcher(client kubernetes.Interface, fc firmament.FirmamentSchedulerClient) *NodeWatcher {
 	glog.Info("Starting NodeWatcher...")
+	NodesCond = sync.NewCond(&sync.Mutex{})
 	NodeToRTND = make(map[string]*firmament.ResourceTopologyNodeDescriptor)
 	ResIDToNode = make(map[string]string)
 	nodewatcher := &NodeWatcher{
@@ -174,6 +176,7 @@ func (this *NodeWatcher) nodeWorker() {
 				node := item.(*Node)
 				switch node.Phase {
 				case NodeAdded:
+					NodesCond.L.Lock()
 					rtnd := this.createResourceTopologyForNode(node)
 					_, ok := NodeToRTND[node.Hostname]
 					if ok {
@@ -181,26 +184,35 @@ func (this *NodeWatcher) nodeWorker() {
 					}
 					NodeToRTND[node.Hostname] = rtnd
 					ResIDToNode[rtnd.GetResourceDesc().GetUuid()] = node.Hostname
+					NodesCond.L.Unlock()
 					firmament.NodeAdded(this.fc, rtnd)
 				case NodeDeleted:
+					NodesCond.L.Lock()
 					rtnd, ok := NodeToRTND[node.Hostname]
+					NodesCond.L.Unlock()
 					if !ok {
 						glog.Fatalf("Node %s does not exist", node.Hostname)
 					}
 					resID := rtnd.GetResourceDesc().GetUuid()
 					firmament.NodeRemoved(this.fc, &firmament.ResourceUID{ResourceUid: resID})
+					NodesCond.L.Lock()
 					delete(NodeToRTND, node.Hostname)
 					delete(ResIDToNode, resID)
+					NodesCond.L.Unlock()
 				case NodeFailed:
+					NodesCond.L.Lock()
 					rtnd, ok := NodeToRTND[node.Hostname]
+					NodesCond.L.Unlock()
 					if !ok {
 						glog.Fatalf("Node %s does not exist", node.Hostname)
 					}
 					resID := rtnd.GetResourceDesc().GetUuid()
 					firmament.NodeFailed(this.fc, &firmament.ResourceUID{ResourceUid: resID})
+					NodesCond.L.Lock()
 					this.cleanResourceStateForNode(rtnd)
 					delete(NodeToRTND, node.Hostname)
 					delete(ResIDToNode, resID)
+					NodesCond.L.Unlock()
 				case NodeUpdated:
 					// TODO(ionel): Handle update case.
 				default:
