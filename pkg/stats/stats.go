@@ -142,9 +142,7 @@ func (s *poseidonStatsServer) ReceivePodStats(stream PoseidonStats_ReceivePodSta
 			}
 			continue
 		}
-		taskStats.TaskUid = &firmament.TaskUID{
-			TaskUid: td.GetUid(),
-		}
+		taskStats.TaskId = td.GetUid()
 		firmament.AddTaskStats(s.firmamentClient, taskStats)
 		sendErr := stream.Send(&PodStatsResponse{
 			Type:      PodStatsResponseType_POD_STATS_OK,

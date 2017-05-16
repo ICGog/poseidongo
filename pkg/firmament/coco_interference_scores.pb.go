@@ -20,6 +20,7 @@ It is generated from these files:
 	task_desc.proto
 	task_final_report.proto
 	task_perf_statistics_sample.proto
+	task_stats.proto
 	whare_map_stats.proto
 
 It has these top-level messages:
@@ -34,11 +35,11 @@ It has these top-level messages:
 	NodeAddedResponse
 	NodeRemovedResponse
 	NodeFailedResponse
+	NodeUpdatedResponse
 	TaskStatsResponse
 	ResourceStatsResponse
 	TaskUID
 	ResourceUID
-	TaskStats
 	ResourceStats
 	JobDescriptor
 	Label
@@ -53,6 +54,7 @@ It has these top-level messages:
 	TaskDescriptor
 	TaskFinalReport
 	TaskPerfStatisticsSample
+	TaskStats
 	WhareMapStats
 */
 package firmament
