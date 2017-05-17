@@ -32,6 +32,7 @@ It has these top-level messages:
 	TaskSubmittedResponse
 	TaskRemovedResponse
 	TaskFailedResponse
+	TaskUpdatedResponse
 	NodeAddedResponse
 	NodeRemovedResponse
 	NodeFailedResponse
