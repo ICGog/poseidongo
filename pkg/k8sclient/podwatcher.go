@@ -27,6 +27,7 @@ import (
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -36,7 +37,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-func NewPodWatcher(schedulerName string, client kubernetes.Interface, fc firmament.FirmamentSchedulerClient) *PodWatcher {
+func NewPodWatcher(kubeVerMajor, kubeVerMinor int, schedulerName string, client kubernetes.Interface, fc firmament.FirmamentSchedulerClient) *PodWatcher {
 	glog.Info("Starting PodWatcher...")
 	PodsCond = sync.NewCond(&sync.Mutex{})
 	PodToTD = make(map[PodIdentifier]*firmament.TaskDescriptor)
@@ -47,19 +48,27 @@ func NewPodWatcher(schedulerName string, client kubernetes.Interface, fc firmame
 		clientset: client,
 		fc:        fc,
 	}
-	podPhaseSelector := fields.ParseSelectorOrDie("status.phase!=Running")
-	// TODO(ionel): schedulerName only available in Kubernetes 1.6.
-	// schedulerNameSelector := fields.ParseSelectorOrDie("spec.schedulerName==" + schedulerName)
-	// podSelector := fields.AndSelectors(schedulerNameSelector, podPhaseSelector)
-	podSelector := podPhaseSelector
+	schedulerSelector := fields.Everything()
+	podSelector := labels.Everything()
+	if kubeVerMajor >= 1 && kubeVerMinor >= 6 {
+		// schedulerName is only available in Kubernetes >= 1.6.
+		schedulerSelector = fields.ParseSelectorOrDie("spec.schedulerName==" + schedulerName)
+	} else {
+		podSelector, err = labels.Parse("scheduler in (" + schedulerName + ")")
+		if err != nil {
+			glog.Fatal("Failed to parse scheduler label selector")
+		}
+	}
 	_, controller := cache.NewInformer(
 		&cache.ListWatch{
 			ListFunc: func(alo metav1.ListOptions) (runtime.Object, error) {
-				alo.FieldSelector = podSelector.String()
+				alo.FieldSelector = schedulerSelector.String()
+				alo.LabelSelector = podSelector.String()
 				return client.CoreV1().Pods("").List(alo)
 			},
 			WatchFunc: func(alo metav1.ListOptions) (watch.Interface, error) {
-				alo.FieldSelector = podSelector.String()
+				alo.FieldSelector = schedulerSelector.String()
+				alo.LabelSelector = podSelector.String()
 				return client.CoreV1().Pods("").Watch(alo)
 			},
 		},

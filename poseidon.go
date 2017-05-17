@@ -20,6 +20,8 @@ package main
 
 import (
 	"flag"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ICGog/poseidongo/pkg/firmament"
@@ -32,6 +34,7 @@ var (
 	schedulerName      string
 	firmamentAddress   string
 	kubeConfig         string
+	kubeVersion        string
 	statsServerAddress string
 	schedulingInterval int
 )
@@ -40,6 +43,7 @@ func init() {
 	flag.StringVar(&schedulerName, "schedulerName", "poseidon", "The scheduler name with which pods are labelles")
 	flag.StringVar(&firmamentAddress, "firmamentAddress", "127.0.0.1:9090", "Firmament scheduler address")
 	flag.StringVar(&kubeConfig, "kubeConfig", "kubeconfig.cfg", "Path to the kubeconfig file")
+	flag.StringVar(&kubeVersion, "kubeVersion", "1.5.6", "Kubernees version")
 	flag.StringVar(&statsServerAddress, "statsServerAddress", "127.0.0.1:9091", "Address on which the stats server listens")
 	flag.IntVar(&schedulingInterval, "schedulingInterval", 10, "Time between scheduler runs (in sec)")
 	flag.Parse()
@@ -88,5 +92,14 @@ func main() {
 	}
 	go schedule(fc)
 	go stats.StartgRPCStatsServer(statsServerAddress, firmamentAddress)
-	k8sclient.New(schedulerName, kubeConfig, firmamentAddress)
+	kubeVer := strings.Split(kubeVersion, ".")
+	kubeMajorVer, err := strconv.Atoi(kubeVer[0])
+	if err != nil {
+		glog.Fatalf("Incorrect content in --kubeVersion %s", kubeVersion)
+	}
+	kubeMinorVer, err := strconv.Atoi(kubeVer[1])
+	if err != nil {
+		glog.Fatalf("Incorrect content in --kubeVersion %s", kubeVersion)
+	}
+	k8sclient.New(schedulerName, kubeConfig, kubeMajorVer, kubeMinorVer, firmamentAddress)
 }
