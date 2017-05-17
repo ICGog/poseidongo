@@ -315,8 +315,24 @@ func (this *PodWatcher) podWorker() {
 					glog.Errorf("Pod %s in unknown state", pod.Identifier)
 					// TODO(ionel): Handle Unknown case.
 				case PodUpdated:
-					glog.Errorf("Pod %s in updated state", pod.Identifier)
-					// TODO(ionel): Handle Updated case.
+					glog.V(2).Info("PodUpdated ", pod.Identifier)
+					PodsCond.L.Lock()
+					jobId := this.generateJobID(pod.Identifier.Name)
+					jd, okJob := jobIDToJD[jobId]
+					td, okPod := PodToTD[pod.Identifier]
+					PodsCond.L.Unlock()
+					if !okJob {
+						glog.Fatalf("Pod's %v job does not exist", pod.Identifier)
+					}
+					if !okPod {
+						glog.Fatalf("Pod %v does not exist", pod.Identifier)
+					}
+					this.updateTask(pod, td)
+					taskDescription := &firmament.TaskDescription{
+						TaskDescriptor: td,
+						JobDescriptor:  jd,
+					}
+					firmament.TaskUpdated(this.fc, taskDescription)
 				default:
 					glog.Fatalf("Pod %v in unexpected state %v", pod.Identifier, pod.State)
 				}
@@ -335,12 +351,28 @@ func (this *PodWatcher) createNewJob(jobName string) *firmament.JobDescriptor {
 	return jobDesc
 }
 
+func (this *PodWatcher) updateTask(pod *Pod, td *firmament.TaskDescriptor) {
+	// TODO(ionel): Update LabelSelector!
+	td.ResourceRequest.CpuCores = float32(pod.CpuRequest)
+	td.ResourceRequest.RamCap = uint64(pod.MemRequestKb)
+	// Update labels.
+	td.Labels = nil
+	for label, value := range pod.Labels {
+		td.Labels = append(td.Labels,
+			&firmament.Label{
+				Key:   label,
+				Value: value,
+			})
+	}
+}
+
 func (this *PodWatcher) addTaskToJob(pod *Pod, jd *firmament.JobDescriptor) *firmament.TaskDescriptor {
 	task := &firmament.TaskDescriptor{
 		Name:  pod.Identifier.UniqueName(),
 		State: firmament.TaskDescriptor_CREATED,
 		JobId: jd.Uuid,
 		ResourceRequest: &firmament.ResourceVector{
+			// TODO(ionel): Update types so no cast is required.
 			CpuCores: float32(pod.CpuRequest),
 			RamCap:   uint64(pod.MemRequestKb),
 		},

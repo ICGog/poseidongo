@@ -99,6 +99,22 @@ func TaskSubmitted(client FirmamentSchedulerClient, td *TaskDescription) {
 	}
 }
 
+func TaskUpdated(client FirmamentSchedulerClient, td *TaskDescription) {
+	tUpdatedResp, err := client.TaskUpdated(context.Background(), td)
+	if err != nil {
+		grpclog.Fatalf("%v.TaskUpdated(_) = _, %v: ", client, err)
+	}
+	switch tUpdatedResp.Type {
+	case TaskReplyType_TASK_NOT_FOUND:
+		glog.Fatalf("Task (%s,%d) not found", td.JobDescriptor.Uuid, td.TaskDescriptor.Uid)
+	case TaskReplyType_TASK_JOB_NOT_FOUND:
+		glog.Fatalf("Task's (%s,%d) job not found", td.JobDescriptor.Uuid, td.TaskDescriptor.Uid)
+	case TaskReplyType_TASK_UPDATED_OK:
+	default:
+		panic(fmt.Sprintf("Unexpected TaskUpdated response %v for task (%v,%v)", tUpdatedResp, td.JobDescriptor.Uuid, td.TaskDescriptor.Uid))
+	}
+}
+
 func NodeAdded(client FirmamentSchedulerClient, rtnd *ResourceTopologyNodeDescriptor) {
 	nAddedResp, err := client.NodeAdded(context.Background(), rtnd)
 	if err != nil {
