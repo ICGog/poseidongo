@@ -20,6 +20,7 @@ package k8sclient
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -54,6 +55,7 @@ func NewPodWatcher(kubeVerMajor, kubeVerMinor int, schedulerName string, client 
 		// schedulerName is only available in Kubernetes >= 1.6.
 		schedulerSelector = fields.ParseSelectorOrDie("spec.schedulerName==" + schedulerName)
 	} else {
+		var err error
 		podSelector, err = labels.Parse("scheduler in (" + schedulerName + ")")
 		if err != nil {
 			glog.Fatal("Failed to parse scheduler label selector")
@@ -103,8 +105,7 @@ func NewPodWatcher(kubeVerMajor, kubeVerMinor int, schedulerName string, client 
 	return podWatcher
 }
 
-func (this *PodWatcher) enqueuePodAddition(key interface{}, obj interface{}) {
-	pod := obj.(*v1.Pod)
+func (this *PodWatcher) getCpuMemRequest(pod *v1.Pod) (int64, int64) {
 	cpuReq := int64(0)
 	memReq := int64(0)
 	for _, container := range pod.Spec.Containers {
@@ -115,6 +116,11 @@ func (this *PodWatcher) enqueuePodAddition(key interface{}, obj interface{}) {
 		memReqCont, _ := memReqQuantity.AsInt64()
 		memReq += memReqCont
 	}
+	return cpuReq, memReq
+}
+
+func (this *PodWatcher) parsePod(pod *v1.Pod) *Pod {
+	cpuReq, memReq := this.getCpuMemRequest(pod)
 	podPhase := PodPhase("Unknown")
 	switch pod.Status.Phase {
 	case "Pending":
@@ -126,7 +132,7 @@ func (this *PodWatcher) enqueuePodAddition(key interface{}, obj interface{}) {
 	case "Failed":
 		podPhase = "Failed"
 	}
-	addedPod := &Pod{
+	return &Pod{
 		Identifier: PodIdentifier{
 			Name:      pod.Name,
 			Namespace: pod.Namespace,
@@ -138,6 +144,11 @@ func (this *PodWatcher) enqueuePodAddition(key interface{}, obj interface{}) {
 		Annotations:  pod.Annotations,
 		NodeSelector: pod.Spec.NodeSelector,
 	}
+}
+
+func (this *PodWatcher) enqueuePodAddition(key interface{}, obj interface{}) {
+	pod := obj.(*v1.Pod)
+	addedPod := this.parsePod(pod)
 	this.podWorkQueue.Add(key, addedPod)
 	glog.Info("enqueuePodAddition: Added pod ", addedPod.Identifier)
 }
@@ -145,10 +156,7 @@ func (this *PodWatcher) enqueuePodAddition(key interface{}, obj interface{}) {
 func (this *PodWatcher) enqueuePodDeletion(key interface{}, obj interface{}) {
 	pod := obj.(*v1.Pod)
 	if pod.DeletionTimestamp != nil {
-		// The watch receives a delete event followed by a add event
-		// when a pod transitions from a phase to another. Hence, we
-		// check and only remove the pod if its DeletionTimestamp has
-		// been set.
+		// Only delete pods if they have a DeletionTimestamp.
 		deletedPod := &Pod{
 			Identifier: PodIdentifier{
 				Name:      pod.Name,
@@ -162,11 +170,26 @@ func (this *PodWatcher) enqueuePodDeletion(key interface{}, obj interface{}) {
 }
 
 func (this *PodWatcher) enqueuePodUpdate(key, oldObj, newObj interface{}) {
-	// TODO(ionel): Implement!
 	oldPod := oldObj.(*v1.Pod)
 	newPod := newObj.(*v1.Pod)
-	glog.Infof("oldPod %v", oldPod)
-	glog.Infof("newPod %v", newPod)
+	if oldPod.Status.Phase != newPod.Status.Phase {
+		// TODO(ionel): This code assumes that if other fields changed as well then Firmament will automatically update them upon state transition. This is currently not true.
+		updatedPod := this.parsePod(newPod)
+		this.podWorkQueue.Add(key, updatedPod)
+		glog.Infof("enqueuePodUpdate: Updated pod state change %v %s", updatedPod.Identifier, updatedPod.State)
+		return
+	}
+	oldCpuReq, oldMemReq := this.getCpuMemRequest(oldPod)
+	newCpuReq, newMemReq := this.getCpuMemRequest(newPod)
+	if oldCpuReq != newCpuReq || oldMemReq != newMemReq ||
+		!reflect.DeepEqual(oldPod.Labels, newPod.Labels) ||
+		!reflect.DeepEqual(oldPod.Annotations, newPod.Annotations) ||
+		!reflect.DeepEqual(oldPod.Spec.NodeSelector, newPod.Spec.NodeSelector) {
+		updatedPod := this.parsePod(newPod)
+		this.podWorkQueue.Add(key, updatedPod)
+		glog.Info("enqueuePodUpdate: Updated pod ", updatedPod.Identifier)
+		return
+	}
 }
 
 func (this *PodWatcher) Run(stopCh <-chan struct{}, nWorkers int) {
@@ -204,6 +227,7 @@ func (this *PodWatcher) podWorker() {
 				pod := item.(*Pod)
 				switch pod.State {
 				case PodPending:
+					glog.V(2).Info("PodPending ", pod.Identifier)
 					PodsCond.L.Lock()
 					// TODO(ionel): We generate a job per pod. Add a field to the Pod struct that uniquely identifies jobs/daemon sets and use that one instead to group pods into Firmament jobs.
 					jobId := this.generateJobID(pod.Identifier.Name)
@@ -224,6 +248,7 @@ func (this *PodWatcher) podWorker() {
 					PodsCond.L.Unlock()
 					firmament.TaskSubmitted(this.fc, taskDescription)
 				case PodSucceeded:
+					glog.V(2).Info("PodSucceeded ", pod.Identifier)
 					PodsCond.L.Lock()
 					td, ok := PodToTD[pod.Identifier]
 					PodsCond.L.Unlock()
@@ -248,6 +273,7 @@ func (this *PodWatcher) podWorker() {
 					}
 					PodsCond.L.Unlock()
 				case PodDeleted:
+					glog.V(2).Info("PodDeleted ", pod.Identifier)
 					PodsCond.L.Lock()
 					td, ok := PodToTD[pod.Identifier]
 					PodsCond.L.Unlock()
@@ -272,6 +298,7 @@ func (this *PodWatcher) podWorker() {
 					}
 					PodsCond.L.Unlock()
 				case PodFailed:
+					glog.V(2).Info("PodFailed ", pod.Identifier)
 					PodsCond.L.Lock()
 					td, ok := PodToTD[pod.Identifier]
 					PodsCond.L.Unlock()
@@ -282,10 +309,14 @@ func (this *PodWatcher) podWorker() {
 					// TODO(ionel): We do not delete the task from podToTD and taskIDToPod in case the task may be rescheduled. Check how K8s restart policies work and decide what to do here.
 					// TODO(ionel): Should we delete the task from JD's spawned field?
 				case PodRunning:
+					glog.V(2).Info("PodRunning ", pod.Identifier)
 					// We don't have to do anything.
 				case PodUnknown:
 					glog.Errorf("Pod %s in unknown state", pod.Identifier)
 					// TODO(ionel): Handle Unknown case.
+				case PodUpdated:
+					glog.Errorf("Pod %s in updated state", pod.Identifier)
+					// TODO(ionel): Handle Updated case.
 				default:
 					glog.Fatalf("Pod %v in unexpected state %v", pod.Identifier, pod.State)
 				}

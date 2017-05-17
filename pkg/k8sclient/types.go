@@ -72,6 +72,8 @@ const (
 	PodUnknown   PodPhase = "Unknown"
 	// Internal phase used for removed pods.
 	PodDeleted PodPhase = "Deleted"
+	// Internal phase for pods that are externally updated.
+	PodUpdated PodPhase = "Updated"
 )
 
 type PodIdentifier struct {
