@@ -134,17 +134,22 @@ func (this *PodWatcher) enqueuePodAddition(key interface{}, obj interface{}) {
 }
 
 func (this *PodWatcher) enqueuePodDeletion(key interface{}, obj interface{}) {
-	// TODO(ionel): This method is called when the pod is scheduled!
 	pod := obj.(*v1.Pod)
-	deletedPod := &Pod{
-		Identifier: PodIdentifier{
-			Name:      pod.Name,
-			Namespace: pod.Namespace,
-		},
-		State: PodDeleted,
+	if pod.DeletionTimestamp != nil {
+		// The watch receives a delete event followed by a add event
+		// when a pod transitions from a phase to another. Hence, we
+		// check and only remove the pod if its DeletionTimestamp has
+		// been set.
+		deletedPod := &Pod{
+			Identifier: PodIdentifier{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+			State: PodDeleted,
+		}
+		this.podWorkQueue.Add(key, deletedPod)
+		glog.Info("enqueuePodDeletion: Added pod ", deletedPod.Identifier)
 	}
-	//	this.podWorkQueue.Add(key, deletedPod)
-	glog.Info("enqueuePodDeletion: Added pod ", deletedPod.Identifier)
 }
 
 func (this *PodWatcher) enqueuePodUpdate(key, oldObj, newObj interface{}) {
