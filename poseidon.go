@@ -33,6 +33,7 @@ var (
 	firmamentAddress   string
 	kubeConfig         string
 	statsServerAddress string
+	schedulingInterval int
 )
 
 func init() {
@@ -40,6 +41,7 @@ func init() {
 	flag.StringVar(&firmamentAddress, "firmamentAddress", "127.0.0.1:9090", "Firmament scheduler address")
 	flag.StringVar(&kubeConfig, "kubeConfig", "kubeconfig.cfg", "Path to the kubeconfig file")
 	flag.StringVar(&statsServerAddress, "statsServerAddress", "127.0.0.1:9091", "Address on which the stats server listens")
+	flag.IntVar(&schedulingInterval, "schedulingInterval", 10, "Time between scheduler runs (in sec)")
 	flag.Parse()
 }
 
@@ -73,7 +75,7 @@ func schedule(fc firmament.FirmamentSchedulerClient) {
 			}
 		}
 		// TODO(ionel): Temporary sleep statement because we currently call the scheduler even if there's no work do to.
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(schedulingInterval) * time.Second)
 	}
 }
 

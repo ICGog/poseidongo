@@ -134,6 +134,7 @@ func (this *NodeWatcher) enqueueNodeAddition(key, obj interface{}) {
 }
 
 func (this *NodeWatcher) enqueueNodeUpdate(key, oldObj, newObj interface{}) {
+	// XXX(ionel): enqueueNodeUpdate gets called whenever one of node's timestamp is updated. Figure out solution such that the method is called only when certain fields change.
 	oldNode := oldObj.(*v1.Node)
 	newNode := newObj.(*v1.Node)
 	if oldNode.Spec.Unschedulable != newNode.Spec.Unschedulable {
