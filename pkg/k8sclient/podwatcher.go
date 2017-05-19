@@ -44,7 +44,7 @@ func NewPodWatcher(kubeVerMajor, kubeVerMinor int, schedulerName string, client 
 	PodToTD = make(map[PodIdentifier]*firmament.TaskDescriptor)
 	TaskIDToPod = make(map[uint64]PodIdentifier)
 	jobIDToJD = make(map[string]*firmament.JobDescriptor)
-	jobNumIncompleteTasks = make(map[string]int)
+	jobNumTasksToRemove = make(map[string]int)
 	podWatcher := &PodWatcher{
 		clientset: client,
 		fc:        fc,
@@ -235,10 +235,10 @@ func (this *PodWatcher) podWorker() {
 					if !ok {
 						jd = this.createNewJob(pod.Identifier.Name)
 						jobIDToJD[jobId] = jd
-						jobNumIncompleteTasks[jobId] = 0
+						jobNumTasksToRemove[jobId] = 0
 					}
 					td := this.addTaskToJob(pod, jd)
-					jobNumIncompleteTasks[jobId]++
+					jobNumTasksToRemove[jobId]++
 					PodToTD[pod.Identifier] = td
 					TaskIDToPod[td.GetUid()] = pod.Identifier
 					taskDescription := &firmament.TaskDescription{
@@ -256,22 +256,6 @@ func (this *PodWatcher) podWorker() {
 						glog.Fatalf("Pod %v does not exist", pod.Identifier)
 					}
 					firmament.TaskCompleted(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
-					PodsCond.L.Lock()
-					delete(PodToTD, pod.Identifier)
-					delete(TaskIDToPod, td.GetUid())
-					jobId := this.generateJobID(pod.Identifier.Name)
-					jobNumIncompleteTasks[jobId]--
-					if jobNumIncompleteTasks[jobId] == 0 {
-						// All tasks completed => Job is completed.
-						delete(jobNumIncompleteTasks, jobId)
-						delete(jobIDToJD, jobId)
-					} else {
-						// XXX(ionel): We currently leave the deleted task in the job's
-						// root/spawned task list. We do not delete it in case we need
-						// to consistently regenerate taskUids out of job name and tasks'
-						// position within the Spawned list.
-					}
-					PodsCond.L.Unlock()
 				case PodDeleted:
 					glog.V(2).Info("PodDeleted ", pod.Identifier)
 					PodsCond.L.Lock()
@@ -285,16 +269,11 @@ func (this *PodWatcher) podWorker() {
 					delete(PodToTD, pod.Identifier)
 					delete(TaskIDToPod, td.GetUid())
 					jobId := this.generateJobID(pod.Identifier.Name)
-					jobNumIncompleteTasks[jobId]--
-					if jobNumIncompleteTasks[jobId] == 0 {
+					jobNumTasksToRemove[jobId]--
+					if jobNumTasksToRemove[jobId] == 0 {
 						// Clean state because the job doesn't have any tasks left.
-						delete(jobNumIncompleteTasks, jobId)
+						delete(jobNumTasksToRemove, jobId)
 						delete(jobIDToJD, jobId)
-					} else {
-						// XXX(ionel): We currently leave the deleted task in the job's
-						// root/spawned task list. We do not delete it in case we need
-						// to consistently regenerate taskUids out of job name and tasks'
-						// position within the Spawned list.
 					}
 					PodsCond.L.Unlock()
 				case PodFailed:

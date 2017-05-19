@@ -33,7 +33,7 @@ var PodsCond *sync.Cond
 var PodToTD map[PodIdentifier]*firmament.TaskDescriptor
 var TaskIDToPod map[uint64]PodIdentifier
 var jobIDToJD map[string]*firmament.JobDescriptor
-var jobNumIncompleteTasks map[string]int
+var jobNumTasksToRemove map[string]int
 
 // Used to guard access to the node and resource related maps.
 var NodesCond *sync.Cond
