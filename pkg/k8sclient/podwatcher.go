@@ -268,6 +268,7 @@ func (this *PodWatcher) podWorker() {
 					PodsCond.L.Lock()
 					delete(PodToTD, pod.Identifier)
 					delete(TaskIDToPod, td.GetUid())
+					// TODO(ionel): Should we delete the task from JD's spawned field?
 					jobId := this.generateJobID(pod.Identifier.Name)
 					jobNumTasksToRemove[jobId]--
 					if jobNumTasksToRemove[jobId] == 0 {
@@ -285,8 +286,6 @@ func (this *PodWatcher) podWorker() {
 						glog.Fatalf("Pod %s does not exist", pod.Identifier)
 					}
 					firmament.TaskFailed(this.fc, &firmament.TaskUID{TaskUid: td.Uid})
-					// TODO(ionel): We do not delete the task from podToTD and taskIDToPod in case the task may be rescheduled. Check how K8s restart policies work and decide what to do here.
-					// TODO(ionel): Should we delete the task from JD's spawned field?
 				case PodRunning:
 					glog.V(2).Info("PodRunning ", pod.Identifier)
 					// We don't have to do anything.
