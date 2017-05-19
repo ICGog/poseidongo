@@ -31,7 +31,6 @@ import (
 var clientSet kubernetes.Interface
 
 func BindPodToNode(podName string, namespace string, nodeName string) {
-	// TODO(ionel): Reuse namespace clients!
 	err := clientSet.CoreV1().Pods(namespace).Bind(&v1.Binding{
 		meta_v1.TypeMeta{},
 		meta_v1.ObjectMeta{
@@ -47,7 +46,6 @@ func BindPodToNode(podName string, namespace string, nodeName string) {
 }
 
 func DeletePod(podName string, namespace string) {
-	// TODO(ionel): Reuse namespace clients!
 	clientSet.CoreV1().Pods(namespace).Delete(podName, &meta_v1.DeleteOptions{})
 }
 
