@@ -351,16 +351,16 @@ func (m *ResourceUID) GetResourceUid() string {
 
 type ResourceStats struct {
 	ResourceUid *ResourceUID `protobuf:"bytes,1,opt,name=resource_uid,json=resourceUid" json:"resource_uid,omitempty"`
-	// CPU stats in millicores.
-	CpuAllocatable uint64 `protobuf:"varint,2,opt,name=cpu_allocatable,json=cpuAllocatable" json:"cpu_allocatable,omitempty"`
-	CpuCapacity    uint64 `protobuf:"varint,3,opt,name=cpu_capacity,json=cpuCapacity" json:"cpu_capacity,omitempty"`
-	CpuReservation uint64 `protobuf:"varint,4,opt,name=cpu_reservation,json=cpuReservation" json:"cpu_reservation,omitempty"`
-	CpuUtilization uint64 `protobuf:"varint,5,opt,name=cpu_utilization,json=cpuUtilization" json:"cpu_utilization,omitempty"`
-	// Memory stats in Kb.
-	MemAllocatable uint64 `protobuf:"varint,6,opt,name=mem_allocatable,json=memAllocatable" json:"mem_allocatable,omitempty"`
-	MemCapacity    uint64 `protobuf:"varint,7,opt,name=mem_capacity,json=memCapacity" json:"mem_capacity,omitempty"`
-	MemReservation uint64 `protobuf:"varint,8,opt,name=mem_reservation,json=memReservation" json:"mem_reservation,omitempty"`
-	MemUtilization uint64 `protobuf:"varint,9,opt,name=mem_utilization,json=memUtilization" json:"mem_utilization,omitempty"`
+	// CPU stats (fraction of total).
+	CpuAllocatable float64 `protobuf:"fixed64,2,opt,name=cpu_allocatable,json=cpuAllocatable" json:"cpu_allocatable,omitempty"`
+	CpuCapacity    float64 `protobuf:"fixed64,3,opt,name=cpu_capacity,json=cpuCapacity" json:"cpu_capacity,omitempty"`
+	CpuReservation float64 `protobuf:"fixed64,4,opt,name=cpu_reservation,json=cpuReservation" json:"cpu_reservation,omitempty"`
+	CpuUtilization float64 `protobuf:"fixed64,5,opt,name=cpu_utilization,json=cpuUtilization" json:"cpu_utilization,omitempty"`
+	// Memory stats (fraction of total).
+	MemAllocatable float64 `protobuf:"fixed64,6,opt,name=mem_allocatable,json=memAllocatable" json:"mem_allocatable,omitempty"`
+	MemCapacity    float64 `protobuf:"fixed64,7,opt,name=mem_capacity,json=memCapacity" json:"mem_capacity,omitempty"`
+	MemReservation float64 `protobuf:"fixed64,8,opt,name=mem_reservation,json=memReservation" json:"mem_reservation,omitempty"`
+	MemUtilization float64 `protobuf:"fixed64,9,opt,name=mem_utilization,json=memUtilization" json:"mem_utilization,omitempty"`
 }
 
 func (m *ResourceStats) Reset()                    { *m = ResourceStats{} }
@@ -375,56 +375,56 @@ func (m *ResourceStats) GetResourceUid() *ResourceUID {
 	return nil
 }
 
-func (m *ResourceStats) GetCpuAllocatable() uint64 {
+func (m *ResourceStats) GetCpuAllocatable() float64 {
 	if m != nil {
 		return m.CpuAllocatable
 	}
 	return 0
 }
 
-func (m *ResourceStats) GetCpuCapacity() uint64 {
+func (m *ResourceStats) GetCpuCapacity() float64 {
 	if m != nil {
 		return m.CpuCapacity
 	}
 	return 0
 }
 
-func (m *ResourceStats) GetCpuReservation() uint64 {
+func (m *ResourceStats) GetCpuReservation() float64 {
 	if m != nil {
 		return m.CpuReservation
 	}
 	return 0
 }
 
-func (m *ResourceStats) GetCpuUtilization() uint64 {
+func (m *ResourceStats) GetCpuUtilization() float64 {
 	if m != nil {
 		return m.CpuUtilization
 	}
 	return 0
 }
 
-func (m *ResourceStats) GetMemAllocatable() uint64 {
+func (m *ResourceStats) GetMemAllocatable() float64 {
 	if m != nil {
 		return m.MemAllocatable
 	}
 	return 0
 }
 
-func (m *ResourceStats) GetMemCapacity() uint64 {
+func (m *ResourceStats) GetMemCapacity() float64 {
 	if m != nil {
 		return m.MemCapacity
 	}
 	return 0
 }
 
-func (m *ResourceStats) GetMemReservation() uint64 {
+func (m *ResourceStats) GetMemReservation() float64 {
 	if m != nil {
 		return m.MemReservation
 	}
 	return 0
 }
 
-func (m *ResourceStats) GetMemUtilization() uint64 {
+func (m *ResourceStats) GetMemUtilization() float64 {
 	if m != nil {
 		return m.MemUtilization
 	}
@@ -921,7 +921,7 @@ var fileDescriptor1 = []byte{
 	0x4e, 0xb6, 0x19, 0x65, 0x3e, 0x87, 0xa7, 0x7c, 0xfe, 0x64, 0xec, 0x53, 0xb5, 0x93, 0x61, 0x74,
 	0xc5, 0xef, 0x4d, 0xe8, 0x96, 0xfc, 0xe1, 0xb7, 0x35, 0x8b, 0x3a, 0x93, 0x8b, 0x82, 0xbf, 0xc2,
 	0x16, 0x25, 0x31, 0xfc, 0x02, 0xfa, 0xa6, 0x1f, 0xeb, 0x86, 0xe3, 0x78, 0xa6, 0x11, 0x19, 0x1b,
-	0x87, 0xb0, 0xcf, 0xb2, 0xa5, 0xf6, 0x4c, 0x3f, 0x96, 0x72, 0x94, 0x1a, 0xa3, 0x44, 0xd3, 0xf0,
+	0x87, 0xb0, 0xcf, 0xb2, 0xa1, 0xf6, 0x4c, 0x3f, 0x96, 0x72, 0x94, 0x1a, 0xa3, 0x44, 0xd3, 0xf0,
 	0x0d, 0xd3, 0x8e, 0x76, 0xa3, 0x26, 0x63, 0x75, 0x4c, 0x3f, 0x9e, 0xa5, 0x50, 0xa6, 0x15, 0x90,
 	0x90, 0x04, 0x1f, 0x0c, 0x3a, 0x38, 0x46, 0x2d, 0xae, 0xa5, 0xe6, 0x68, 0x46, 0x8c, 0x23, 0xdb,
 	0xb1, 0x7f, 0x4b, 0x88, 0x47, 0x9c, 0xb8, 0xce, 0x51, 0x4a, 0x74, 0x89, 0x5b, 0x72, 0x77, 0x9c,
@@ -950,6 +950,6 @@ var fileDescriptor1 = []byte{
 	0xa7, 0xf0, 0x53, 0x22, 0x94, 0x35, 0xed, 0x5f, 0x54, 0x5a, 0xd5, 0xde, 0xef, 0xa1, 0x0c, 0x4f,
 	0x25, 0xcb, 0xe2, 0x81, 0x87, 0xff, 0xab, 0x1e, 0x22, 0x45, 0x4b, 0x1d, 0xdb, 0x0b, 0x47, 0x51,
 	0xc0, 0x5b, 0xa6, 0x42, 0x77, 0x48, 0x54, 0x46, 0x35, 0x16, 0x13, 0xa5, 0xab, 0x87, 0xde, 0xe4,
-	0x6a, 0x9b, 0x63, 0xf6, 0xa7, 0xfb, 0xcd, 0x3f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xa7, 0x7b, 0xd8,
-	0x96, 0x7f, 0x0b, 0x00, 0x00,
+	0x6a, 0x9b, 0x63, 0xf6, 0xa7, 0xfb, 0xcd, 0x3f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xa7, 0xfa, 0x21,
+	0x79, 0x7f, 0x0b, 0x00, 0x00,
 }

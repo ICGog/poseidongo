@@ -41,6 +41,8 @@ func convertPodStatsToTaskStats(podStats *PodStats) *firmament.TaskStats {
 		MemLimit:            podStats.GetMemLimit(),
 		MemRequest:          podStats.GetMemRequest(),
 		MemUsage:            podStats.GetMemUsage(),
+		MemRss:              podStats.GetMemRss(),
+		MemCache:            podStats.GetMemCache(),
 		MemWorkingSet:       podStats.GetMemWorkingSet(),
 		MemPageFaults:       podStats.GetMemPageFaults(),
 		MemPageFaultsRate:   podStats.GetMemPageFaultsRate(),

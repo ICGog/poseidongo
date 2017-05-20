@@ -27,16 +27,16 @@ service PoseidonStats {
 
 message NodeStats {
   string hostname = 1;
-  // CPU stats in millicores.
-  uint64 cpu_allocatable = 2;
-  uint64 cpu_capacity = 3;
-  uint64 cpu_reservation = 4;
-  uint64 cpu_utilization = 5;
-  // Memory stats in Kb.
-  uint64 mem_allocatable = 6;
-  uint64 mem_capacity = 7;
-  uint64 mem_reservation = 8;
-  uint64 mem_utilization = 9;
+  // CPU stats (fraction of total).
+  double cpu_allocatable = 2;
+  double cpu_capacity = 3;
+  double cpu_reservation = 4;
+  double cpu_utilization = 5;
+  // Memory stats (fraction of total).
+  double mem_allocatable = 6;
+  double mem_capacity = 7;
+  double mem_reservation = 8;
+  double mem_utilization = 9;
 }
 
 enum NodeStatsResponseType {
@@ -54,27 +54,29 @@ message PodStats {
   string namespace = 2;
   string hostname = 3;
   // CPU stats in millicores.
-  uint64 cpu_limit = 4;
-  uint64 cpu_request = 5;
-  uint64 cpu_usage = 6;
+  int64 cpu_limit = 4;
+  int64 cpu_request = 5;
+  int64 cpu_usage = 6;
   // Memory stats in Kb.
-  uint64 mem_limit = 7;
-  uint64 mem_request = 8;
-  uint64 mem_usage = 9;
-  uint64 mem_working_set = 10;
-  uint64 mem_page_faults = 11;
-  double mem_page_faults_rate = 12;
-  uint64 major_page_faults = 13;
-  double major_page_faults_rate = 14;
+  int64 mem_limit = 7;
+  int64 mem_request = 8;
+  int64 mem_usage = 9;
+  int64 mem_rss = 10;
+  int64 mem_cache = 11;
+  int64 mem_working_set = 12;
+  int64 mem_page_faults = 13;
+  double mem_page_faults_rate = 14;
+  int64 major_page_faults = 15;
+  double major_page_faults_rate = 16;
   // Network stats in Kb.
-  uint64 net_rx = 15;
-  uint64 net_rx_errors = 16;
-  double net_rx_errors_rate = 17;
-  double net_rx_rate = 18;
-  uint64 net_tx = 19;
-  uint64 net_tx_errors = 20;
-  double net_tx_errors_rate = 21;
-  double net_tx_rate = 22;
+  int64 net_rx = 17;
+  int64 net_rx_errors = 18;
+  double net_rx_errors_rate = 19;
+  double net_rx_rate = 20;
+  int64 net_tx = 21;
+  int64 net_tx_errors = 22;
+  double net_tx_errors_rate = 23;
+  double net_tx_rate = 24;
 }
 
 enum PodStatsResponseType {
