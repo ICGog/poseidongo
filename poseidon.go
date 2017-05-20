@@ -69,10 +69,18 @@ func schedule(fc firmament.FirmamentSchedulerClient) {
 					glog.Fatalf("Placed task %d on resource %s without node pairing", delta.GetTaskId(), delta.GetResourceId())
 				}
 				k8sclient.BindPodToNode(podIdentifier.Name, podIdentifier.Namespace, nodeName)
-			case firmament.SchedulingDelta_PREEMPT:
-				glog.Fatalf("Pod preemption not currently supported.")
-			case firmament.SchedulingDelta_MIGRATE:
-				glog.Fatalf("Pod migration not currently supported.")
+			case firmament.SchedulingDelta_PREEMPT, firmament.SchedulingDelta_MIGRATE:
+				k8sclient.PodsCond.L.Lock()
+				podIdentifier, ok := k8sclient.TaskIDToPod[delta.GetTaskId()]
+				k8sclient.PodsCond.L.Unlock()
+				if !ok {
+					glog.Fatalf("Preempted task %d without pod pairing", delta.GetTaskId())
+				}
+				// XXX(ionel): HACK! Kubernetes does not yet have support for preemption.
+				// However, preemption can be achieved by deleting the preempted pod
+				// and relying on the controller mechanism (e.g., job, replica set)
+				// to submit another instance of this pod.
+				k8sclient.DeletePod(podIdentifier.Name, podIdentifier.Namespace)
 			case firmament.SchedulingDelta_NOOP:
 			default:
 				glog.Fatalf("Unexpected SchedulingDelta type %v", delta.GetType())
