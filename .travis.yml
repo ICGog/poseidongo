@@ -1,0 +1,20 @@
+language: go
+
+dist: trusty
+
+go:
+  - 1.7.1
+
+script:
+  - go build -v
+
+branches:
+  only:
+    - master
+
+notifications:
+  email: true
+    - firmament-dev@camsas.org
+
+os:
+  - linux
