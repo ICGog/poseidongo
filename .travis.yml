@@ -13,7 +13,7 @@ install:
 
 script:
   - go build -v
-  - $HOME/gopath/bin/goveralls -service=travis-ci -ignore=.pb.go
+  - $HOME/gopath/bin/goveralls -service=travis-ci -ignore=*\\.pb\\.go
 
 branches:
   only:
